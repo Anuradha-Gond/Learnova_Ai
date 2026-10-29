@@ -1,0 +1,39 @@
+# Node dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# Next.js build output
+/.next/
+/out/
+/build
+
+# Local environment and secret files
+.env*.local
+.env
+.env.production
+.env.staging
+
+# Private student document storage
+/.private_storage/
+
+# Testing & coverage
+/coverage
+
+# Operating system files
+.DS_Store
+Thumbs.db
+*.pem
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Vercel
+.vercel
+
+# TypeScript / build caches
+*.tsbuildinfo
+next-env.d.ts
+/scratch/
