@@ -24,7 +24,8 @@ export async function PATCH(request, { params }) {
     }
 
     // 1. Validate route parameter ID
-    const paramResult = recommendationIdParamSchema.safeParse(params);
+    const resolvedParams = await params;
+    const paramResult = recommendationIdParamSchema.safeParse(resolvedParams);
     if (!paramResult.success) {
       return Response.json(
         { error: "Invalid recommendation identifier format." },

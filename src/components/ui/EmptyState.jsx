@@ -12,16 +12,16 @@ export default function EmptyState({
 }) {
   return (
     <div
-      className={`rounded-card bg-white border border-dashed border-surface-300 p-8 sm:p-12 text-center flex flex-col items-center justify-center ${className || ""}`}
+      className={`rounded-card bg-[#172033] border border-dashed border-[#334155] p-8 sm:p-12 text-center flex flex-col items-center justify-center ${className || ""}`}
     >
-      <div className="w-14 h-14 rounded-2xl bg-brand-50 border border-brand-100 text-brand-700 flex items-center justify-center mb-4 shadow-subtle">
+      <div className="w-14 h-14 rounded-2xl bg-brand-950/80 border border-brand-800/60 text-brand-400 flex items-center justify-center mb-4 shadow-subtle">
         <Icon className="w-7 h-7" />
       </div>
 
-      <h3 className="text-base font-bold text-surface-900 font-display">
+      <h3 className="text-base font-bold text-slate-100 font-display">
         {title}
       </h3>
-      <p className="text-xs text-surface-500 max-w-sm mx-auto mt-1.5 mb-6 leading-relaxed">
+      <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1.5 mb-6 leading-relaxed">
         {description}
       </p>
 

@@ -24,28 +24,28 @@ export function showToast({ title, message, type = "info", duration = 4000 }) {
 
 const toastStyles = {
   success: {
-    border: "border-emerald-200 bg-white",
+    border: "border-emerald-800/60 bg-[#172033] text-emerald-200",
     icon: CheckCircle2,
-    iconColor: "text-emerald-600",
-    badge: "bg-emerald-50 text-emerald-700",
+    iconColor: "text-emerald-400",
+    badge: "bg-emerald-950/80 text-emerald-300",
   },
   error: {
-    border: "border-rose-200 bg-white",
+    border: "border-rose-800/60 bg-[#172033] text-rose-200",
     icon: AlertCircle,
-    iconColor: "text-rose-600",
-    badge: "bg-rose-50 text-rose-700",
+    iconColor: "text-rose-400",
+    badge: "bg-rose-950/80 text-rose-300",
   },
   warning: {
-    border: "border-amber-200 bg-white",
+    border: "border-amber-800/60 bg-[#172033] text-amber-200",
     icon: AlertTriangle,
-    iconColor: "text-amber-600",
-    badge: "bg-amber-50 text-amber-700",
+    iconColor: "text-amber-400",
+    badge: "bg-amber-950/80 text-amber-300",
   },
   info: {
-    border: "border-brand-200 bg-white",
+    border: "border-brand-800/60 bg-[#172033] text-brand-200",
     icon: Info,
-    iconColor: "text-brand-700",
-    badge: "bg-brand-50 text-brand-700",
+    iconColor: "text-brand-400",
+    badge: "bg-brand-950/80 text-brand-300",
   },
 };
 
@@ -87,22 +87,22 @@ export function ToastContainer() {
           <div
             key={toast.id}
             role="status"
-            className={`pointer-events-auto p-4 rounded-xl border shadow-dropdown flex items-start gap-3 animate-fade-in ${style.border}`}
+            className={`pointer-events-auto p-4 rounded-xl border shadow-modal flex items-start gap-3 animate-fade-in ${style.border}`}
           >
             <IconComponent className={`w-5 h-5 shrink-0 mt-0.5 ${style.iconColor}`} />
             <div className="flex-1 min-w-0">
               {toast.title && (
-                <h4 className="text-xs font-bold text-surface-900 mb-0.5">
+                <h4 className="text-xs font-bold text-slate-100 mb-0.5">
                   {toast.title}
                 </h4>
               )}
-              <p className="text-xs text-surface-600 leading-relaxed">
+              <p className="text-xs text-slate-300 leading-relaxed">
                 {toast.message}
               </p>
             </div>
             <button
               onClick={() => dismissToast(toast.id)}
-              className="text-surface-400 hover:text-surface-700 p-0.5 rounded transition-colors"
+              className="text-slate-400 hover:text-white p-0.5 rounded transition-colors"
               aria-label="Dismiss notification"
             >
               <X className="w-4 h-4" />

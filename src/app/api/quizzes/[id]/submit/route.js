@@ -17,6 +17,7 @@ import { evaluateAndScoreSubmission } from "@/services/quizService.js";
  * 7. Persists QuizSubmission and returns the authorized result summary with explanations.
  */
 export async function POST(request, { params }) {
+  const resolvedParams = await params;
   try {
     let user;
     try {
@@ -28,7 +29,7 @@ export async function POST(request, { params }) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = resolvedParams;
     const idValidation = objectIdSchema.safeParse(id);
     if (!idValidation.success) {
       return Response.json({ error: "Invalid quiz identifier format" }, { status: 400 });
@@ -73,7 +74,7 @@ export async function POST(request, { params }) {
       );
     }
   } catch (err) {
-    console.error(`[POST /api/quizzes/${params?.id}/submit] Error:`, err.message);
+    console.error(`[POST /api/quizzes/${resolvedParams?.id}/submit] Error:`, err.message);
     return Response.json(
       { error: "An unexpected server error occurred during quiz evaluation." },
       { status: 500 }

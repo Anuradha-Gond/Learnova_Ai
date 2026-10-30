@@ -38,7 +38,7 @@ export default function Dialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity animate-fade-in"
+        className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity animate-fade-in"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -46,26 +46,26 @@ export default function Dialog({
       {/* Dialog Modal Surface */}
       <div
         className={cn(
-          "relative w-full rounded-2xl bg-white border border-surface-200 p-6 shadow-modal z-10 animate-fade-in text-left",
+          "relative w-full rounded-2xl bg-[#172033] border border-[#334155] p-6 shadow-modal z-10 animate-fade-in text-left text-slate-100",
           maxWidth
         )}
         role="dialog"
         aria-modal="true"
       >
-        <div className="flex items-start justify-between pb-4 border-b border-surface-200">
+        <div className="flex items-start justify-between pb-4 border-b border-slate-800">
           <div>
             {title && (
-              <h3 className="text-lg font-bold text-surface-900 font-display">
+              <h3 className="text-lg font-bold text-slate-100 font-display">
                 {title}
               </h3>
             )}
             {description && (
-              <p className="text-xs text-surface-500 mt-1">{description}</p>
+              <p className="text-xs text-slate-400 mt-1">{description}</p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-surface-400 hover:text-surface-700 hover:bg-surface-100 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
             aria-label="Close dialog"
           >
             <X className="w-5 h-5" />

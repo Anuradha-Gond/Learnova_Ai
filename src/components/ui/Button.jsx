@@ -6,19 +6,21 @@ import { Loader2 } from "lucide-react";
 
 const variants = {
   primary:
-    "bg-brand-700 hover:bg-brand-800 text-white shadow-sm hover:shadow transition-all duration-150 active:scale-[0.98]",
+    "bg-brand-500 hover:bg-brand-600 text-white shadow-sm hover:shadow-md hover:shadow-brand-500/20 transition-all duration-150 active:scale-[0.98] font-semibold",
   secondary:
-    "bg-surface-100 hover:bg-surface-200 text-surface-800 border border-surface-200 shadow-subtle active:scale-[0.98]",
+    "bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 shadow-subtle active:scale-[0.98] font-medium",
   accent:
-    "bg-teal-600 hover:bg-teal-700 text-white shadow-sm hover:shadow transition-all duration-150 active:scale-[0.98]",
+    "bg-teal-500 hover:bg-teal-600 text-white shadow-sm hover:shadow transition-all duration-150 active:scale-[0.98] font-semibold",
   violet:
-    "bg-violet-600 hover:bg-violet-700 text-white shadow-sm hover:shadow transition-all duration-150 active:scale-[0.98]",
+    "bg-violet-500 hover:bg-violet-600 text-white shadow-sm hover:shadow transition-all duration-150 active:scale-[0.98] font-semibold",
   outline:
-    "bg-white hover:bg-surface-50 text-surface-700 border border-surface-300 hover:border-surface-400 shadow-subtle active:scale-[0.98]",
+    "bg-transparent hover:bg-slate-800/80 text-slate-200 border border-slate-700 hover:border-slate-600 shadow-subtle active:scale-[0.98] font-medium",
   ghost:
-    "bg-transparent hover:bg-surface-100 text-surface-600 hover:text-surface-900",
+    "bg-transparent hover:bg-slate-800 text-slate-300 hover:text-white transition-colors font-medium",
   danger:
-    "bg-danger-600 hover:bg-danger-700 text-white shadow-sm active:scale-[0.98]",
+    "bg-rose-600 hover:bg-rose-700 text-white shadow-sm active:scale-[0.98] font-semibold",
+  destructive:
+    "bg-rose-600 hover:bg-rose-700 text-white shadow-sm active:scale-[0.98] font-semibold",
 };
 
 const sizes = {

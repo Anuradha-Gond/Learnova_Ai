@@ -7,7 +7,7 @@ export function Skeleton({ className, ...props }) {
   return (
     <div
       className={cn(
-        "animate-pulse rounded-lg bg-surface-200/80",
+        "animate-pulse rounded-lg bg-slate-800/60",
         className
       )}
       {...props}
@@ -44,7 +44,7 @@ export function SkeletonAvatar({ size = "md", className }) {
 
 export function SkeletonCard({ className }) {
   return (
-    <div className={cn("edu-card p-6 space-y-4", className)}>
+    <div className={cn("edu-card p-6 space-y-4 bg-[#172033] border border-[#334155]", className)}>
       <div className="flex items-center gap-3">
         <SkeletonAvatar size="md" />
         <div className="space-y-1.5 flex-1">

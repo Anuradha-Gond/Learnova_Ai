@@ -10,6 +10,7 @@ import { objectIdSchema } from "@/validations/common.js";
  * Retrieves the authenticated student's previous attempt submissions and results for this quiz.
  */
 export async function GET(request, { params }) {
+  const resolvedParams = await params;
   try {
     let user;
     try {
@@ -21,7 +22,7 @@ export async function GET(request, { params }) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = resolvedParams;
     const idValidation = objectIdSchema.safeParse(id);
     if (!idValidation.success) {
       return Response.json({ error: "Invalid quiz identifier format" }, { status: 400 });
@@ -63,7 +64,7 @@ export async function GET(request, { params }) {
       totalAttempts: formatted.length,
     });
   } catch (err) {
-    console.error(`[GET /api/quizzes/${params?.id}/submissions] Error:`, err.message);
+    console.error(`[GET /api/quizzes/${resolvedParams?.id}/submissions] Error:`, err.message);
     return Response.json(
       { error: "Failed to retrieve quiz submission history." },
       { status: 500 }

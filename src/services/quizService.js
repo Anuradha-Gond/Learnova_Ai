@@ -5,7 +5,7 @@ import QuizSubmission from "../models/QuizSubmission.js";
 import TopicMastery from "../models/TopicMastery.js";
 import Material from "../models/Material.js";
 import MaterialChunk from "../models/MaterialChunk.js";
-import { getGenerativeModel, isAIConfigured, AI_MODELS } from "../lib/ai/index.js";
+import { getGenerativeModel, isAIConfigured, AI_MODELS, callGeminiWithRetry, GeminiErrorCode } from "../lib/ai/index.js";
 import { calculateTopicMastery } from "./analyticsService.js";
 
 /**
@@ -389,22 +389,51 @@ RETURN ONLY VALID STRICT JSON (no markdown formatting, no commentary outside the
 
   while (attempts < 2 && !parsedData) {
     attempts++;
-    try {
-      const result = await model.generateContent(prompt);
-      const text = result?.response?.text() || "";
-      const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
-      const parsed = JSON.parse(cleanJson);
 
-      if (validateGeneratedQuestions(parsed.questions, questionCount)) {
-        parsedData = parsed;
+    // 1. Invoke Gemini with retry for transient errors (429 daily quota will not retry)
+    let rawText = "";
+    try {
+      const result = await callGeminiWithRetry(() => model.generateContent(prompt), {
+        context: "quizService.generateQuiz",
+        maxRetries: 1,
+        baseDelayMs: 400,
+      });
+      rawText = result?.response?.text() || "";
+    } catch (apiErr) {
+      // Re-throw API errors immediately without masking as parse failures
+      throw apiErr;
+    }
+
+    // 2. Extract and parse JSON
+    const cleanJson = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
+    let parsed = null;
+    try {
+      parsed = JSON.parse(cleanJson);
+    } catch {
+      // If direct parse fails, try extracting the outermost JSON object
+      const firstBrace = cleanJson.indexOf("{");
+      const lastBrace = cleanJson.lastIndexOf("}");
+      if (firstBrace !== -1 && lastBrace > firstBrace) {
+        try {
+          parsed = JSON.parse(cleanJson.slice(firstBrace, lastBrace + 1));
+        } catch {
+          parsed = null;
+        }
       }
-    } catch (parseErr) {
-      console.warn(`[quizService] Quiz generation parse attempt ${attempts} failed:`, parseErr.message);
+    }
+
+    if (parsed && validateGeneratedQuestions(parsed.questions, questionCount)) {
+      parsedData = parsed;
+    } else {
+      console.warn(`[quizService] Quiz generation parse attempt ${attempts} failed validation.`);
     }
   }
 
   if (!parsedData || !Array.isArray(parsedData.questions) || parsedData.questions.length === 0) {
-    throw new Error("Failed to generate a valid structured quiz from document passages. Please try again.");
+    const parseError = new Error("Failed to generate a valid structured quiz from document passages. Please try again.");
+    parseError.code = GeminiErrorCode.PARSE_ERROR;
+    parseError.httpStatus = 502;
+    throw parseError;
   }
 
   // Ensure questions count does not exceed questionCount

@@ -14,16 +14,20 @@ import {
   ChevronDown,
   ChevronUp,
   RefreshCw,
+  Tag,
+  ArrowRight,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import { SkeletonCard } from "@/components/ui/Skeleton";
+import MarkdownRenderer from "@/components/ui/MarkdownRenderer";
 import { cn } from "@/lib/utils";
 
 export default function ConceptSimplifier({
   materialId,
   materialTitle,
   processingStatus,
+  topicTags = [],
   onTriggerProcess,
 }) {
   const [concept, setConcept] = useState("");
@@ -34,9 +38,24 @@ export default function ConceptSimplifier({
   const [copied, setCopied] = useState(false);
   const [showSources, setShowSources] = useState(false);
 
-  const handleSimplify = async (e) => {
-    e?.preventDefault();
-    const query = concept.trim();
+  // Suggested concepts derived from document topic tags or title
+  const suggestedConcepts = React.useMemo(() => {
+    const list = [];
+    if (Array.isArray(topicTags) && topicTags.length > 0) {
+      list.push(...topicTags);
+    }
+    // If fewer than 3, extract key noun phrases from title if clean
+    if (list.length < 3 && materialTitle) {
+      const cleaned = materialTitle.replace(/\.(pdf|txt)$/i, "").trim();
+      if (cleaned.length > 3 && !list.includes(cleaned)) {
+        list.push(cleaned);
+      }
+    }
+    return list.slice(0, 5);
+  }, [topicTags, materialTitle]);
+
+  const handleSimplify = async (conceptToQuery = concept) => {
+    const query = (conceptToQuery || "").trim();
     if (!query || isSimplifying || processingStatus !== "ready") return;
 
     setIsSimplifying(true);
@@ -62,6 +81,11 @@ export default function ConceptSimplifier({
     }
   };
 
+  const handleChipClick = (term) => {
+    setConcept(term);
+    handleSimplify(term);
+  };
+
   const handleCopy = () => {
     if (!result?.explanation) return;
     navigator.clipboard.writeText(result.explanation);
@@ -72,11 +96,11 @@ export default function ConceptSimplifier({
   if (processingStatus !== "ready") {
     return (
       <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-8 min-h-[500px] flex flex-col items-center justify-center text-center space-y-4">
-        <div className="w-14 h-14 rounded-2xl bg-amber-950/60 border border-amber-800/40 text-amber-400 flex items-center justify-center">
+        <div className="w-14 h-14 rounded-2xl bg-amber-950/60 border border-amber-800/40 text-amber-400 flex items-center justify-center shadow-sm">
           <AlertCircle className="w-7 h-7" />
         </div>
         <div className="space-y-1.5 max-w-md">
-          <h3 className="text-sm font-bold text-white">Document Processing Required</h3>
+          <h3 className="text-base font-bold text-white">Document Processing Required</h3>
           <p className="text-xs text-slate-400 leading-relaxed">
             Please process this document first so Learnova AI can retrieve relevant excerpts and ground its concept explanations.
           </p>
@@ -86,7 +110,7 @@ export default function ConceptSimplifier({
             size="sm"
             variant="primary"
             onClick={onTriggerProcess}
-            className="gap-2 bg-brand-600 hover:bg-brand-500"
+            className="gap-2 bg-brand-600 hover:bg-brand-500 shadow-sm"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             <span>Process Document Now</span>
@@ -97,24 +121,30 @@ export default function ConceptSimplifier({
   }
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 min-h-[600px] space-y-6">
-      {/* Header */}
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 sm:p-6 min-h-[600px] space-y-6 shadow-xl">
+      {/* ── Header ─────────────────────────────────────────────────── */}
       <div className="border-b border-slate-800 pb-4 space-y-1">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
             <Brain className="w-4 h-4 text-teal-400" />
             <span>Concept Simplifier</span>
           </h3>
-          <Badge variant="teal" size="sm">Document-Grounded</Badge>
+          <Badge variant="teal" size="sm">Document Grounded</Badge>
         </div>
         <p className="text-xs text-slate-400">
           Break down dense or confusing concepts from this document into student-friendly explanations with intuitive analogies.
         </p>
       </div>
 
-      {/* Query Form */}
-      <form onSubmit={handleSimplify} className="space-y-3.5">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+      {/* ── Query Form ─────────────────────────────────────────────── */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSimplify();
+        }}
+        className="space-y-3"
+      >
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
           <div className="relative flex-1">
             <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
@@ -123,7 +153,7 @@ export default function ConceptSimplifier({
               onChange={(e) => setConcept(e.target.value)}
               placeholder="Enter a concept (e.g. Entity-Relationship, Paging, Normalization, Semaphore)..."
               disabled={isSimplifying}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 transition-colors"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 transition-colors shadow-inner"
             />
           </div>
 
@@ -132,9 +162,9 @@ export default function ConceptSimplifier({
               value={depth}
               onChange={(e) => setDepth(e.target.value)}
               disabled={isSimplifying}
-              className="px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 focus:outline-none focus:border-teal-500 transition-colors"
+              className="px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 focus:outline-none focus:border-teal-500 transition-colors shrink-0"
             >
-              <option value="beginner">Beginner (ELI5)</option>
+              <option value="beginner">Beginner Friendly</option>
               <option value="intermediate">Undergraduate Depth</option>
             </select>
 
@@ -143,18 +173,39 @@ export default function ConceptSimplifier({
               size="sm"
               variant="primary"
               disabled={!concept.trim() || isSimplifying}
-              className="gap-2 bg-teal-600 hover:bg-teal-500 text-white shrink-0"
+              className="gap-2 bg-teal-600 hover:bg-teal-500 text-white shrink-0 shadow-sm"
             >
               <Sparkles className={cn("w-3.5 h-3.5", isSimplifying && "animate-spin")} />
-              <span>{isSimplifying ? "Simplifying..." : "Simplify"}</span>
+              <span>{isSimplifying ? "Explaining..." : "Explain Concept"}</span>
             </Button>
           </div>
         </div>
+
+        {/* Suggested concept chips if available */}
+        {suggestedConcepts.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap pt-1 text-xs text-slate-400">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1 mr-1">
+              <Tag className="w-3 h-3 text-teal-400" />
+              <span>Suggested:</span>
+            </span>
+            {suggestedConcepts.map((term, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => handleChipClick(term)}
+                className="px-2.5 py-1 rounded-lg bg-slate-950/80 hover:bg-teal-950/70 border border-slate-800 hover:border-teal-600/50 text-[11px] text-slate-300 hover:text-teal-200 transition-colors flex items-center gap-1"
+              >
+                <span>{term}</span>
+                <ArrowRight className="w-2.5 h-2.5 text-slate-500" />
+              </button>
+            ))}
+          </div>
+        )}
       </form>
 
-      {/* Error state */}
+      {/* ── Error State ────────────────────────────────────────────── */}
       {error && (
-        <div className="p-3.5 rounded-xl bg-rose-950/60 border border-rose-800/60 text-xs text-rose-200 flex items-start gap-2.5">
+        <div className="p-3.5 rounded-xl bg-rose-950/70 border border-rose-800/60 text-xs text-rose-200 flex items-start gap-2.5 animate-fade-in">
           <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
           <div className="space-y-1">
             <p className="font-semibold text-rose-300">Simplification Error</p>
@@ -163,9 +214,9 @@ export default function ConceptSimplifier({
         </div>
       )}
 
-      {/* Loading state */}
+      {/* ── Loading State ──────────────────────────────────────────── */}
       {isSimplifying && (
-        <div className="space-y-4 py-6">
+        <div className="space-y-4 py-4 animate-fade-in">
           <div className="p-4 rounded-xl bg-slate-950 border border-teal-800/40 flex items-center gap-3">
             <RefreshCw className="w-4 h-4 text-teal-400 animate-spin" />
             <p className="text-xs text-teal-200 font-medium">
@@ -177,12 +228,12 @@ export default function ConceptSimplifier({
         </div>
       )}
 
-      {/* Result display */}
+      {/* ── Result Display ─────────────────────────────────────────── */}
       {!isSimplifying && result && (
-        <div className="space-y-5">
+        <div className="space-y-5 animate-fade-in">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400">Concept:</span>
+              <span className="text-xs text-slate-400">Target Concept:</span>
               <span className="text-sm font-bold text-white capitalize">{result.concept}</span>
               <Badge variant="teal" size="sm" className="capitalize">{result.depth}</Badge>
             </div>
@@ -198,36 +249,34 @@ export default function ConceptSimplifier({
             </Button>
           </div>
 
-          <div className="prose prose-invert max-w-none text-xs sm:text-sm text-slate-200 leading-relaxed bg-slate-950/60 p-6 rounded-xl border border-slate-800 select-text">
-            <div className="whitespace-pre-wrap font-sans space-y-3">
-              {result.explanation}
-            </div>
+          <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-5 sm:p-6 shadow-inner select-text">
+            <MarkdownRenderer content={result.explanation} />
           </div>
 
           {/* Sources / Citations */}
           {result.sources?.length > 0 && (
-            <div className="rounded-xl border border-slate-800 bg-slate-950/40 overflow-hidden">
+            <div className="rounded-xl border border-slate-800 bg-slate-950/60 overflow-hidden shadow-sm">
               <button
                 type="button"
                 onClick={() => setShowSources(!showSources)}
-                className="w-full flex items-center justify-between p-3.5 text-left text-xs font-semibold text-slate-300 hover:bg-slate-900/50 transition-colors"
+                className="w-full flex items-center justify-between p-3.5 text-left text-xs font-semibold text-slate-300 hover:bg-slate-900/60 transition-colors"
               >
                 <div className="flex items-center gap-2">
                   <BookOpen className="w-4 h-4 text-teal-400" />
                   <span>Referenced Document Excerpts ({result.sources.length})</span>
                 </div>
-                {showSources ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                {showSources ? <ChevronUp className="w-4 h-4 text-teal-400" /> : <ChevronDown className="w-4 h-4" />}
               </button>
 
               {showSources && (
-                <div className="p-4 pt-0 space-y-2.5 border-t border-slate-800/60">
+                <div className="p-4 pt-0 space-y-2.5 border-t border-slate-800/60 animate-fade-in">
                   {result.sources.map((src, i) => (
                     <div key={i} className="p-3 rounded-lg bg-slate-900/80 border border-slate-800/80 text-[11px] space-y-1">
                       <div className="flex items-center justify-between text-slate-400 font-mono text-[10px]">
-                        <span>Page {src.page || 1}</span>
+                        <span className="text-teal-400 font-semibold">Page {src.page || 1}</span>
                         {src.score && <span>Relevance: {Math.round(src.score * 100)}%</span>}
                       </div>
-                      <p className="text-slate-300 italic">&ldquo;{src.excerpt}&rdquo;</p>
+                      <p className="text-slate-300 italic border-l-2 border-teal-500/50 pl-2">&ldquo;{src.excerpt}&rdquo;</p>
                     </div>
                   ))}
                 </div>
@@ -237,15 +286,15 @@ export default function ConceptSimplifier({
         </div>
       )}
 
-      {/* Empty prompt state */}
+      {/* ── Empty Prompt State ─────────────────────────────────────── */}
       {!isSimplifying && !result && (
-        <div className="text-center py-16 space-y-4 max-w-sm mx-auto">
-          <div className="w-12 h-12 rounded-2xl bg-teal-950/60 border border-teal-800/40 text-teal-400 flex items-center justify-center mx-auto">
+        <div className="text-center py-16 space-y-4 max-w-sm mx-auto animate-fade-in">
+          <div className="w-12 h-12 rounded-2xl bg-teal-950/60 border border-teal-800/40 text-teal-400 flex items-center justify-center mx-auto shadow-sm">
             <Lightbulb className="w-6 h-6" />
           </div>
           <div className="space-y-1">
             <h4 className="text-sm font-bold text-white">Ask for Any Concept</h4>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-400 leading-relaxed">
               Type any topic or technical term from this document above to receive a student-friendly explanation with intuitive real-world analogies.
             </p>
           </div>
@@ -254,4 +303,3 @@ export default function ConceptSimplifier({
     </div>
   );
 }
-

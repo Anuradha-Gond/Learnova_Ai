@@ -14,6 +14,7 @@ import { toPublicQuizDTO } from "@/services/quizService.js";
  * Answer keys, rubrics, and explanations are never serialized or returned.
  */
 export async function GET(request, { params }) {
+  const resolvedParams = await params;
   try {
     let user;
     try {
@@ -25,7 +26,7 @@ export async function GET(request, { params }) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = resolvedParams;
     const idValidation = objectIdSchema.safeParse(id);
     if (!idValidation.success) {
       return Response.json({ error: "Invalid quiz identifier format" }, { status: 400 });
@@ -45,7 +46,7 @@ export async function GET(request, { params }) {
       quiz: toPublicQuizDTO(quiz),
     });
   } catch (err) {
-    console.error(`[GET /api/quizzes/${params?.id}] Error:`, err.message);
+    console.error(`[GET /api/quizzes/${resolvedParams?.id}] Error:`, err.message);
     return Response.json(
       { error: "Failed to retrieve quiz details." },
       { status: 500 }
@@ -59,6 +60,7 @@ export async function GET(request, { params }) {
  * Deletes a quiz and its private answer key and submissions for the owner.
  */
 export async function DELETE(request, { params }) {
+  const resolvedParams = await params;
   try {
     let user;
     try {
@@ -70,7 +72,7 @@ export async function DELETE(request, { params }) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = resolvedParams;
     const idValidation = objectIdSchema.safeParse(id);
     if (!idValidation.success) {
       return Response.json({ error: "Invalid quiz identifier format" }, { status: 400 });
@@ -96,7 +98,7 @@ export async function DELETE(request, { params }) {
       message: "Quiz and related attempt history deleted successfully.",
     });
   } catch (err) {
-    console.error(`[DELETE /api/quizzes/${params?.id}] Error:`, err.message);
+    console.error(`[DELETE /api/quizzes/${resolvedParams?.id}] Error:`, err.message);
     return Response.json(
       { error: "Failed to delete quiz." },
       { status: 500 }

@@ -104,11 +104,8 @@ export default function HistoryPage() {
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Learning History & Activity Log
+              Learning Activity & History
             </h1>
-            <Badge variant="teal" size="sm">
-              Milestone 8
-            </Badge>
           </div>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
             Complete audit trail of your quizzes, document uploads, and completed revision actions.
@@ -226,7 +223,7 @@ export default function HistoryPage() {
               <Clock className="w-8 h-8 text-slate-600 mx-auto" />
               <h3 className="text-base font-bold text-white">No Activity Recorded</h3>
               <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                Upload your first study material or take an active recall quiz to start logging your learning history.
+                Upload your first study material or take a practice quiz to start logging your learning history.
               </p>
             </div>
           ) : (

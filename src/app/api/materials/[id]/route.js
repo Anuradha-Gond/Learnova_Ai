@@ -22,6 +22,7 @@ import { releaseStorageOnDelete } from "@/services/storageQuotaService.js";
  * - Never exposes storage credentials or permanent object URLs.
  */
 export async function GET(request, { params }) {
+  const resolvedParams = await params;
   try {
     let user;
     try {
@@ -33,7 +34,7 @@ export async function GET(request, { params }) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = resolvedParams;
     const idValidation = objectIdSchema.safeParse(id);
     if (!idValidation.success) {
       return Response.json({ error: "Invalid material identifier" }, { status: 400 });
@@ -109,6 +110,7 @@ export async function GET(request, { params }) {
  * 4. Ensures idempotent and safe error handling.
  */
 export async function DELETE(request, { params }) {
+  const resolvedParams = await params;
   try {
     let user;
     try {
@@ -120,7 +122,7 @@ export async function DELETE(request, { params }) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = resolvedParams;
     const idValidation = objectIdSchema.safeParse(id);
     if (!idValidation.success) {
       return Response.json({ error: "Invalid material identifier" }, { status: 400 });
@@ -187,6 +189,7 @@ export async function DELETE(request, { params }) {
  * Allows renaming a study material title.
  */
 export async function PATCH(request, { params }) {
+  const resolvedParams = await params;
   try {
     let user;
     try {
@@ -198,7 +201,7 @@ export async function PATCH(request, { params }) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = resolvedParams;
     const idValidation = objectIdSchema.safeParse(id);
     if (!idValidation.success) {
       return Response.json({ error: "Invalid material identifier" }, { status: 400 });

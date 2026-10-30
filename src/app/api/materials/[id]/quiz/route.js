@@ -18,6 +18,7 @@ import { generateQuiz, toPublicQuizDTO } from "@/services/quizService.js";
  * 5. Returns only the client-safe public quiz DTO (never exposing answer keys).
  */
 export async function POST(request, { params }) {
+  const resolvedParams = await params;
   try {
     let user;
     try {
@@ -29,7 +30,7 @@ export async function POST(request, { params }) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = resolvedParams;
     const idValidation = objectIdSchema.safeParse(id);
     if (!idValidation.success) {
       return Response.json({ error: "Invalid material identifier format" }, { status: 400 });
@@ -93,15 +94,17 @@ export async function POST(request, { params }) {
     } catch (genErr) {
       console.error(`[POST /api/materials/${id}/quiz] Generation error:`, genErr.message);
       const isConfigError = genErr.message.includes("GEMINI_API_KEY");
+      const status = genErr.httpStatus || (isConfigError ? 503 : 500);
       return Response.json(
         {
           error: genErr.message || "Failed to generate quiz from study material.",
+          code: genErr.code || (isConfigError ? "AI_NOT_CONFIGURED" : "AI_GEN_ERROR"),
         },
-        { status: isConfigError ? 503 : 500 }
+        { status }
       );
     }
   } catch (err) {
-    console.error(`[POST /api/materials/${params?.id}/quiz] Unexpected error:`, err.message);
+    console.error(`[POST /api/materials/${resolvedParams?.id}/quiz] Unexpected error:`, err.message);
     return Response.json(
       { error: "An unexpected server error occurred during quiz generation." },
       { status: 500 }
@@ -115,6 +118,7 @@ export async function POST(request, { params }) {
  * Retrieves all quizzes and latest attempt summaries for the specified study material.
  */
 export async function GET(request, { params }) {
+  const resolvedParams = await params;
   try {
     let user;
     try {
@@ -126,7 +130,7 @@ export async function GET(request, { params }) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = resolvedParams;
     const idValidation = objectIdSchema.safeParse(id);
     if (!idValidation.success) {
       return Response.json({ error: "Invalid material identifier format" }, { status: 400 });
@@ -191,7 +195,7 @@ export async function GET(request, { params }) {
       totalCount: items.length,
     });
   } catch (err) {
-    console.error(`[GET /api/materials/${params?.id}/quiz] Error:`, err.message);
+    console.error(`[GET /api/materials/${resolvedParams?.id}/quiz] Error:`, err.message);
     return Response.json(
       { error: "Failed to retrieve quizzes for this document." },
       { status: 500 }

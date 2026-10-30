@@ -13,6 +13,8 @@ import {
   Search,
   CheckCircle2,
   AlertCircle,
+  Filter,
+  Check,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
@@ -25,6 +27,7 @@ export default function QuizzesPage() {
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all"); // "all" | "attempted" | "unattempted"
 
   const fetchQuizzes = useCallback(async () => {
     setIsLoading(true);
@@ -51,12 +54,17 @@ export default function QuizzesPage() {
     const matchesSearch =
       q.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       q.materialTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      q.topicTags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
+      (q.topicTags || []).some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const matchesDifficulty =
       difficultyFilter === "all" || q.difficulty === difficultyFilter;
 
-    return matchesSearch && matchesDifficulty;
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "attempted" && q.attemptCount > 0) ||
+      (statusFilter === "unattempted" && (!q.attemptCount || q.attemptCount === 0));
+
+    return matchesSearch && matchesDifficulty && matchesStatus;
   });
 
   const totalAttempts = quizzes.reduce((sum, q) => sum + (q.attemptCount || 0), 0);
@@ -77,17 +85,14 @@ export default function QuizzesPage() {
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
               Practice Quizzes
             </h1>
-            <Badge variant="teal" size="sm">
-              Milestone 7
-            </Badge>
           </div>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Grounded active-recall assessments with automated scoring and topic mastery diagnostics.
+            Interactive practice assessments with automated scoring and topic mastery diagnostics.
           </p>
         </div>
 
         <Link href="/materials">
-          <Button variant="primary" size="sm" className="gap-2 bg-brand-600 hover:bg-brand-500">
+          <Button variant="primary" size="sm" className="gap-2 bg-brand-600 hover:bg-brand-500 shadow-sm">
             <BookOpen className="w-3.5 h-3.5" />
             <span>Generate from Material</span>
           </Button>
@@ -96,67 +101,94 @@ export default function QuizzesPage() {
 
       {/* ── Overview Metrics ────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-1">
+        <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-1 hover:border-slate-700 transition-colors">
           <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
             Total Quizzes Created
           </span>
-          <p className="text-2xl font-extrabold text-white font-mono">{quizzes.length}</p>
+          <p className="text-3xl font-extrabold text-white font-mono">{quizzes.length}</p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-1">
+        <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-1 hover:border-slate-700 transition-colors">
           <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
             Attempts Recorded
           </span>
-          <p className="text-2xl font-extrabold text-teal-400 font-mono">{totalAttempts}</p>
+          <p className="text-3xl font-extrabold text-teal-400 font-mono">{totalAttempts}</p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-1">
+        <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-1 hover:border-slate-700 transition-colors">
           <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
             Average Score
           </span>
-          <p className="text-2xl font-extrabold text-brand-300 font-mono">
+          <p className="text-3xl font-extrabold text-brand-300 font-mono">
             {avgScore !== null ? `${avgScore}%` : "—"}
           </p>
         </div>
       </div>
 
       {/* ── Search & Filter Controls ────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-900/40 p-3 rounded-2xl border border-slate-800/80">
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-slate-900/40 p-3.5 rounded-2xl border border-slate-800/80">
         <div className="relative flex-1">
-          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search quizzes by title, material, or topic..."
-            className="w-full bg-slate-950/80 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500"
+            className="w-full bg-slate-950/80 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 shadow-inner"
           />
         </div>
 
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-          {[
-            { id: "all", label: "All Difficulties" },
-            { id: "easy", label: "Beginner" },
-            { id: "medium", label: "Intermediate" },
-            { id: "hard", label: "Advanced" },
-          ].map((f) => (
-            <button
-              key={f.id}
-              onClick={() => setDifficultyFilter(f.id)}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer",
-                difficultyFilter === f.id
-                  ? "bg-brand-600 text-white shadow-sm"
-                  : "bg-slate-900 border border-slate-800 text-slate-400 hover:text-white"
-              )}
-            >
-              {f.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Status Filters */}
+          <div className="flex items-center gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800">
+            {[
+              { id: "all", label: "All" },
+              { id: "attempted", label: "Attempted" },
+              { id: "unattempted", label: "Unattempted" },
+            ].map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setStatusFilter(s.id)}
+                className={cn(
+                  "px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-colors cursor-pointer",
+                  statusFilter === s.id
+                    ? "bg-brand-600 text-white font-semibold shadow-sm"
+                    : "text-slate-400 hover:text-white"
+                )}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Difficulty Filters */}
+          <div className="flex items-center gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800">
+            {[
+              { id: "all", label: "All Levels" },
+              { id: "easy", label: "Beginner" },
+              { id: "medium", label: "Intermediate" },
+              { id: "hard", label: "Advanced" },
+            ].map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setDifficultyFilter(f.id)}
+                className={cn(
+                  "px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-colors cursor-pointer",
+                  difficultyFilter === f.id
+                    ? "bg-teal-600 text-white font-semibold shadow-sm"
+                    : "text-slate-400 hover:text-white"
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* ── Quizzes List ────────────────────────────────────────────── */}
+      {/* ── Quizzes Grid ────────────────────────────────────────────── */}
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           <SkeletonCard className="h-48" />
@@ -172,8 +204,8 @@ export default function QuizzesPage() {
           </Button>
         </div>
       ) : filteredQuizzes.length === 0 ? (
-        <div className="p-12 rounded-3xl bg-slate-900/40 border border-slate-800 text-center max-w-md mx-auto space-y-4">
-          <div className="w-12 h-12 rounded-2xl bg-brand-950 text-brand-400 flex items-center justify-center mx-auto">
+        <div className="p-12 rounded-3xl bg-slate-900/40 border border-slate-800 text-center max-w-md mx-auto space-y-4 animate-fade-in">
+          <div className="w-12 h-12 rounded-2xl bg-brand-950 text-brand-400 flex items-center justify-center mx-auto shadow-sm">
             <HelpCircle className="w-6 h-6" />
           </div>
           <div className="space-y-1">
@@ -181,23 +213,23 @@ export default function QuizzesPage() {
             <p className="text-xs text-slate-400 leading-relaxed">
               {quizzes.length === 0
                 ? "You haven't generated any quizzes yet. Open any of your study materials to create an AI-powered quiz."
-                : "No quizzes match your current search and difficulty filters."}
+                : "No quizzes match your current search and filter selections."}
             </p>
           </div>
           {quizzes.length === 0 && (
             <Link href="/materials">
-              <Button size="sm" variant="primary" className="bg-brand-600 hover:bg-brand-500">
+              <Button size="sm" variant="primary" className="bg-brand-600 hover:bg-brand-500 shadow-sm">
                 Browse Study Materials
               </Button>
             </Link>
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-fade-in">
           {filteredQuizzes.map((quizItem) => (
             <div
               key={quizItem.id}
-              className="rounded-2xl bg-slate-900/80 border border-slate-800/90 hover:border-slate-700 p-5 space-y-4 flex flex-col justify-between transition-all group hover:shadow-lg"
+              className="rounded-2xl bg-slate-900/80 border border-slate-800/90 hover:border-slate-700 p-5 space-y-4 flex flex-col justify-between transition-all group hover:shadow-xl hover:bg-slate-900"
             >
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
@@ -213,7 +245,7 @@ export default function QuizzesPage() {
                         : "primary"
                     }
                     size="sm"
-                    className="capitalize"
+                    className="capitalize text-[10px]"
                   >
                     {quizItem.difficulty}
                   </Badge>
@@ -223,12 +255,12 @@ export default function QuizzesPage() {
                   {quizItem.title}
                 </h3>
 
-                <div className="flex items-center gap-4 text-xs text-slate-400">
+                <div className="flex items-center gap-3 text-xs text-slate-400">
                   <span className="font-mono">{quizItem.questionCount} Questions</span>
                   <span>•</span>
                   <span>
                     {quizItem.attemptCount > 0
-                      ? `${quizItem.attemptCount} attempt(s)`
+                      ? `${quizItem.attemptCount} attempt${quizItem.attemptCount === 1 ? "" : "s"}`
                       : "Not attempted"}
                   </span>
                 </div>
@@ -239,7 +271,11 @@ export default function QuizzesPage() {
                     <span
                       className={cn(
                         "font-mono font-bold",
-                        quizItem.latestScore >= 65 ? "text-emerald-400" : "text-amber-400"
+                        quizItem.latestScore >= 85
+                          ? "text-emerald-400"
+                          : quizItem.latestScore >= 65
+                          ? "text-teal-400"
+                          : "text-amber-400"
                       )}
                     >
                       {quizItem.latestScore}%
@@ -249,7 +285,7 @@ export default function QuizzesPage() {
               </div>
 
               <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between">
-                <span className="text-[10px] text-slate-500">
+                <span className="text-[10px] text-slate-500 font-mono">
                   {new Date(quizItem.createdAt).toLocaleDateString(undefined, {
                     month: "short",
                     day: "numeric",
@@ -257,7 +293,7 @@ export default function QuizzesPage() {
                 </span>
 
                 <Link href={`/quizzes/${quizItem.id}`}>
-                  <Button size="sm" variant="primary" className="gap-1.5 text-xs bg-brand-600 hover:bg-brand-500">
+                  <Button size="sm" variant="primary" className="gap-1.5 text-xs bg-brand-600 hover:bg-brand-500 shadow-sm">
                     <span>{quizItem.attemptCount > 0 ? "Retake" : "Take Quiz"}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </Button>

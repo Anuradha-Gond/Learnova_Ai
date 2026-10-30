@@ -1,5 +1,5 @@
 import { requireAuth, AuthError } from "@/lib/auth/server.js";
-import { getGenerativeModel, isAIConfigured, getDefaultModel } from "@/lib/ai/index.js";
+import { getGenerativeModel, isAIConfigured, getDefaultModel, callGeminiWithRetry } from "@/lib/ai/index.js";
 import { connectDB } from "@/lib/db/index.js";
 import Conversation from "@/models/Conversation.js";
 import { assistantChatSchema, generateConversationTitle } from "@/validations/assistant.js";
@@ -125,96 +125,30 @@ RULES:
       );
     }
 
-    const MAX_RETRIES = 3;
-const jitter = (base, attempt) => base * Math.pow(2, attempt) + Math.floor(Math.random() * 100);
-
-// Helper to delay
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-const chat = generativeModel.startChat({
+    const chat = generativeModel.startChat({
       history: normalizedHistory,
       generationConfig: {
         maxOutputTokens: 2048,
       },
     });
 
-    // Attempt to send the message with retries for transient errors (503 high demand or 429 rate limit)
+    // Execute message dispatch with bounded retries for transient errors only
     let result;
-    let attempt = 0;
-    while (true) {
-      try {
-        result = await chat.sendMessage(message);
-        break; // success
-      } catch (aiErr) {
-        const errMsg = aiErr.message || "";
-        const isRateLimit =
-          errMsg.includes("429") ||
-          errMsg.toLowerCase().includes("quota") ||
-          errMsg.toLowerCase().includes("rate limit");
-        const isKeyInvalid =
-          errMsg.includes("API_KEY_INVALID") ||
-          errMsg.toLowerCase().includes("api key not valid") ||
-          errMsg.includes("PERMISSION_DENIED");
-        const isHighDemand =
-          errMsg.includes("503") ||
-          errMsg.toLowerCase().includes("high demand") ||
-          errMsg.toLowerCase().includes("overloaded");
-        const isModelNotFound =
-          errMsg.includes("404") ||
-          errMsg.toLowerCase().includes("not found") ||
-          errMsg.toLowerCase().includes("no longer available");
-
-        console.error("[POST /api/assistant/chat] Gemini generation error:", errMsg);
-
-        if (isKeyInvalid) {
-          return Response.json(
-            {
-              error:
-                "The configured GEMINI_API_KEY is invalid. Please obtain a valid key from Google AI Studio (aistudio.google.com) and update .env.local.",
-              code: "AI_KEY_INVALID",
-            },
-            { status: 401 }
-          );
-        }
-
-        if (isRateLimit || isHighDemand) {
-          if (attempt < MAX_RETRIES) {
-            attempt++;
-            const waitMs = jitter(200, attempt);
-            await sleep(waitMs);
-            continue; // retry
-          }
-          // after retries, surface a user‑friendly message
-          return Response.json(
-            {
-              error: isRateLimit
-                ? "AI rate limit reached. Please wait a moment and try again."
-                : "The AI service is experiencing temporary high demand. Please try again later.",
-              code: isRateLimit ? "AI_RATE_LIMIT" : "AI_HIGH_DEMAND",
-            },
-            { status: isRateLimit ? 429 : 503 }
-          );
-        }
-
-        if (isModelNotFound) {
-          return Response.json(
-            {
-              error: `The configured Gemini model (${getDefaultModel()}) is not available or retired. Please update GEMINI_MODEL in .env.local to a supported model (such as gemini-3.5-flash).`,
-              code: "AI_MODEL_NOT_FOUND",
-            },
-            { status: 500 }
-          );
-        }
-
-        // Any other error – do not retry
-        return Response.json(
-          {
-            error: "AI service encountered an error processing your request. Please try again.",
-            code: "AI_GEN_ERROR",
-          },
-          { status: 500 }
-        );
-      }
+    try {
+      result = await callGeminiWithRetry(() => chat.sendMessage(message), {
+        context: "POST /api/assistant/chat",
+        maxRetries: 2,
+        baseDelayMs: 400,
+      });
+    } catch (aiErr) {
+      console.error("[POST /api/assistant/chat] Gemini generation error:", aiErr.message);
+      return Response.json(
+        {
+          error: aiErr.message,
+          code: aiErr.code || "AI_GEN_ERROR",
+        },
+        { status: aiErr.httpStatus || 500 }
+      );
     }
 
     let answer = "";

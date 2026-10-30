@@ -106,8 +106,8 @@ export default function QuizGeneratorDialog({
     <Dialog
       isOpen={isOpen}
       onClose={() => !isGenerating && onClose()}
-      title="Generate Active Recall Quiz"
-      description={`Create an AI-tailored practice quiz grounded in "${materialTitle}".`}
+      title="Create Practice Quiz"
+      description={`Generate a personalized practice quiz based on "${materialTitle}".`}
       maxWidth="max-w-lg"
     >
       <div className="space-y-5 text-xs text-slate-300">
@@ -245,7 +245,7 @@ export default function QuizGeneratorDialog({
             className="gap-2 bg-brand-600 hover:bg-brand-500"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>{isGenerating ? "Generating Quiz with AI..." : "Generate Quiz"}</span>
+            <span>{isGenerating ? "Creating Practice Quiz..." : "Create Practice Quiz"}</span>
           </Button>
         </div>
       </div>

@@ -9,78 +9,87 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Light neutral surface background palette
+        // Core Visual Identity Palette (Phase 1 Modernization)
+        canvas: {
+          DEFAULT: "#0B1120", // Main Background
+          subtle: "#111827",  // Secondary Background
+          card: "#172033",    // Card Background
+          elevated: "#1E293B",// Elevated Surface
+        },
+        // Surface scale aligned with dark palette
         surface: {
-          DEFAULT: "#ffffff",
-          50: "#f8fafc",   // Slate-50: Main app background
-          100: "#f1f5f9",  // Slate-100: Secondary card / subtle fill
-          200: "#e2e8f0",  // Slate-200: Borders & dividers
-          300: "#cbd5e1",  // Slate-300: Stronger borders
-          400: "#94a3b8",  // Slate-400: Muted text
-          500: "#64748b",  // Slate-500: Subtitles / secondary labels
-          600: "#475569",  // Slate-600: Body text
-          700: "#334155",  // Slate-700: Headings
-          800: "#1e293b",  // Slate-800: High-contrast text
-          900: "#0f172a",  // Slate-900: Pure contrast
+          DEFAULT: "#172033",
+          50: "#0B1120",   // Main app background
+          100: "#111827",  // Secondary background
+          200: "#172033",  // Card background
+          300: "#1E293B",  // Elevated surface
+          400: "#334155",  // Border
+          500: "#64748B",  // Muted text
+          600: "#94A3B8",  // Secondary text
+          700: "#CBD5E1",  // Subtle light text
+          800: "#E2E8F0",  // High contrast text
+          900: "#F8FAFC",  // Main text
         },
         // Deep Indigo primary brand accent
         brand: {
-          50: "#eef2ff",
-          100: "#e0e7ff",
-          200: "#c7d2fe",
-          300: "#a5b4fc",
-          400: "#818cf8",
-          500: "#6366f1",
-          600: "#4f46e5",  // Main CTA button
-          700: "#4338ca",  // Deep Indigo: Primary brand accent
-          800: "#3730a3",  // Dark Indigo
-          900: "#312e81",
-          950: "#1e1b4b",
+          50: "#EEF2FF",
+          100: "#E0E7FF",
+          200: "#C7D2FE",
+          300: "#A5B4FC",
+          400: "#818CF8",
+          500: "#6366F1",  // Primary Accent
+          600: "#4F46E5",  // Primary Hover / Main CTA
+          700: "#4338CA",  // Deep Indigo
+          800: "#3730A3",  // Dark Indigo
+          900: "#312E81",
+          950: "#1E1B4B",
         },
-        // Restrained Teal accent (learning indicators, active sessions)
+        // Learning Indicator (Teal)
         teal: {
-          50: "#f0fdfa",
-          100: "#ccfbf1",
-          200: "#99f6e4",
-          300: "#5eead4",
-          400: "#2dd4bf",
-          500: "#14b8a6",
-          600: "#0d9488",  // Restrained Teal accent
-          700: "#0f766e",
-          800: "#115e59",
-          900: "#134e4a",
+          50: "#F0FDFA",
+          100: "#CCFBF1",
+          200: "#99F6E4",
+          300: "#5EEAD4",
+          400: "#2DD4BF",
+          500: "#14B8A6",  // Learning Indicator
+          600: "#0D9488",
+          700: "#0F766E",
+          800: "#115E59",
+          900: "#134E4A",
+          950: "#042F2E",
         },
-        // Restrained Violet accent (summaries, concepts)
+        // AI Highlight (Violet)
         violet: {
-          50: "#f5f3ff",
-          100: "#ede9fe",
-          200: "#ddd6fe",
-          300: "#c4b5fd",
-          400: "#a78bfa",
-          500: "#8b5cf6",
-          600: "#7c3aed",  // Restrained Violet accent
-          700: "#6d28d9",
-          800: "#5b21b6",
-          900: "#4c1d95",
+          50: "#F5F3FF",
+          100: "#EDE9FE",
+          200: "#DDD6FE",
+          300: "#C4B5FD",
+          400: "#A78BFA",
+          500: "#8B5CF6",  // AI Highlight
+          600: "#7C3AED",
+          700: "#6D28D9",
+          800: "#5B21B6",
+          900: "#4C1D95",
+          950: "#2E1065",
         },
         // Status Colors
         success: {
-          50: "#f0fdf4",
-          500: "#22c55e",
-          600: "#16a34a",
-          700: "#15803d",
+          50: "#F0FDF4",
+          500: "#22C55E",
+          600: "#16A34A",
+          700: "#15803D",
         },
         warning: {
-          50: "#fffbeb",
-          500: "#f59e0b",
-          600: "#d97706",
-          700: "#b45309",
+          50: "#FFFBEB",
+          500: "#F59E0B",
+          600: "#D97706",
+          700: "#B45309",
         },
         danger: {
-          50: "#fef2f2",
-          500: "#ef4444",
-          600: "#dc2626",
-          700: "#b91c1c",
+          50: "#FEF2F2",
+          500: "#EF4444",
+          600: "#DC2626",
+          700: "#B91C1C",
         },
       },
       fontFamily: {
@@ -88,11 +97,11 @@ module.exports = {
         display: ["var(--font-outfit)", "system-ui", "sans-serif"],
       },
       boxShadow: {
-        subtle: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-        card: "0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.06)",
-        hover: "0 10px 25px -5px rgba(67, 56, 202, 0.08), 0 8px 10px -6px rgba(67, 56, 202, 0.04)",
-        dropdown: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)",
-        modal: "0 25px 50px -12px rgba(15, 23, 42, 0.25)",
+        subtle: "0 1px 2px 0 rgba(0, 0, 0, 0.2)",
+        card: "0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px -1px rgba(0, 0, 0, 0.3)",
+        hover: "0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(99, 102, 241, 0.12)",
+        dropdown: "0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.3)",
+        modal: "0 25px 50px -12px rgba(0, 0, 0, 0.7)",
       },
       borderRadius: {
         card: "1rem", // 16px

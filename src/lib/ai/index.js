@@ -133,3 +133,5 @@ export function isAIConfigured() {
   const apiKey = process.env.GEMINI_API_KEY;
   return Boolean(apiKey && !isAIPlaceholder(apiKey));
 }
+
+export { classifyGeminiError, callGeminiWithRetry, GeminiErrorCode } from "./errors.js";

@@ -7,7 +7,7 @@ export function Card({ children, className, hoverEffect = false, ...props }) {
   return (
     <div
       className={cn(
-        "edu-card p-6",
+        "edu-card p-6 bg-[#172033] border border-[#334155] rounded-card text-slate-100 shadow-card",
         hoverEffect && "edu-card-hover",
         className
       )}
@@ -30,7 +30,7 @@ export function CardTitle({ children, className, ...props }) {
   return (
     <h3
       className={cn(
-        "text-lg font-bold text-surface-900 font-display tracking-tight",
+        "text-lg font-bold text-slate-100 font-display tracking-tight",
         className
       )}
       {...props}
@@ -42,7 +42,7 @@ export function CardTitle({ children, className, ...props }) {
 
 export function CardDescription({ children, className, ...props }) {
   return (
-    <p className={cn("text-xs text-surface-500 leading-relaxed", className)} {...props}>
+    <p className={cn("text-xs text-slate-400 leading-relaxed", className)} {...props}>
       {children}
     </p>
   );
@@ -55,7 +55,7 @@ export function CardContent({ children, className, ...props }) {
 export function CardFooter({ children, className, ...props }) {
   return (
     <div
-      className={cn("flex items-center pt-4 border-t border-surface-200 mt-4", className)}
+      className={cn("flex items-center pt-4 border-t border-slate-800 mt-4", className)}
       {...props}
     >
       {children}

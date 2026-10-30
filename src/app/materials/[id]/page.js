@@ -156,7 +156,7 @@ export default function DocumentWorkspacePage() {
       }
 
       setProcessSuccess(
-        `Successfully processed into ${data.chunkCount} chunks with 768-dim embeddings!`
+        `Successfully processed into ${data.chunkCount} knowledge sections! Ready for AI study aids.`
       );
       setIsProcessing(false);
       fetchDocument();
@@ -208,21 +208,29 @@ export default function DocumentWorkspacePage() {
     <div className="space-y-6">
       {/* ── Top Navigation & Title Bar ────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-800">
-        <div className="space-y-1">
-          <Link
-            href="/materials"
-            className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors mb-1"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Back to All Study Materials</span>
-          </Link>
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl sm:text-2xl font-bold font-display text-white tracking-tight truncate max-w-xl">
+        <div className="space-y-1 min-w-0">
+          <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
+            <Link
+              href="/materials"
+              className="inline-flex items-center gap-1.5 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Learning Library</span>
+            </Link>
+            <span className="text-slate-600">/</span>
+            <span className="text-slate-300 font-medium truncate max-w-xs">{documentData.title}</span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-xl sm:text-2xl font-extrabold font-display text-white tracking-tight truncate max-w-xl">
               {documentData.title}
             </h1>
             <Badge variant="primary" size="sm">
               {isPdf ? "PDF Document" : "Plain Text Document"}
             </Badge>
+            <span className="text-xs text-slate-400 font-mono">
+              {formatFileSize(documentData.fileSizeBytes)}
+            </span>
           </div>
         </div>
 
@@ -253,17 +261,17 @@ export default function DocumentWorkspacePage() {
 
       {/* ── Two-Column Workspace Layout ───────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left / Main Workspace Panel (B2 Preview & Milestone 6 Grounded Chat) */}
+        {/* Left / Main Workspace Panel (Document Preview & Grounded Chat) */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none max-w-full">
               <button
                 type="button"
                 onClick={() => setActiveTab("preview")}
                 className={cn(
-                  "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                  "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 whitespace-nowrap",
                   activeTab === "preview"
-                    ? "bg-slate-800 text-white shadow-sm"
+                    ? "bg-slate-800 text-white shadow-sm border border-slate-700"
                     : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
                 )}
               >
@@ -275,42 +283,42 @@ export default function DocumentWorkspacePage() {
                 type="button"
                 onClick={() => setActiveTab("summary")}
                 className={cn(
-                  "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                  "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 whitespace-nowrap",
                   activeTab === "summary"
-                    ? "bg-brand-600 text-white shadow-sm"
+                    ? "bg-brand-600 text-white shadow-sm font-bold"
                     : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
                 )}
               >
                 <Sparkles className="w-3.5 h-3.5 text-brand-300" />
-                <span>AI Summary</span>
+                <span>Study Summary</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveTab("simplify")}
                 className={cn(
-                  "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                  "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 whitespace-nowrap",
                   activeTab === "simplify"
-                    ? "bg-teal-600 text-white shadow-sm"
+                    ? "bg-teal-600 text-white shadow-sm font-bold"
                     : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
                 )}
               >
                 <Brain className="w-3.5 h-3.5 text-teal-300" />
-                <span>Simplify Concept</span>
+                <span>Explain Concept</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveTab("chat")}
                 className={cn(
-                  "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                  "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 whitespace-nowrap",
                   activeTab === "chat"
-                    ? "bg-brand-600 text-white shadow-sm"
+                    ? "bg-brand-600 text-white shadow-sm font-bold"
                     : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
                 )}
               >
                 <Sparkles className="w-3.5 h-3.5 text-teal-300" />
-                <span>AI Assistant</span>
+                <span>AI Study Partner</span>
                 {documentData.processingStatus === "ready" && (
                   <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
                 )}
@@ -323,14 +331,14 @@ export default function DocumentWorkspacePage() {
                   fetchMaterialQuizzes();
                 }}
                 className={cn(
-                  "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                  "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 whitespace-nowrap",
                   activeTab === "quizzes"
-                    ? "bg-indigo-600 text-white shadow-sm"
+                    ? "bg-indigo-600 text-white shadow-sm font-bold"
                     : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
                 )}
               >
                 <HelpCircle className="w-3.5 h-3.5 text-indigo-300" />
-                <span>Quizzes</span>
+                <span>Practice Quizzes</span>
                 {materialQuizzes.length > 0 && (
                   <span className="px-1.5 py-0.2 rounded-full bg-slate-900 text-[10px] text-indigo-200 font-mono font-bold">
                     {materialQuizzes.length}
@@ -340,9 +348,9 @@ export default function DocumentWorkspacePage() {
             </div>
 
             {activeTab === "preview" && (
-              <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-slate-400">
+              <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-slate-400 shrink-0">
                 <Lock className="w-3 h-3 text-emerald-400" />
-                <span>Private Presigned Stream (15-min TTL)</span>
+                <span>Secure Document Preview</span>
               </div>
             )}
           </div>
@@ -359,6 +367,7 @@ export default function DocumentWorkspacePage() {
               materialId={materialId}
               materialTitle={documentData.title}
               processingStatus={documentData.processingStatus}
+              topicTags={documentData.topicTags || []}
               onTriggerProcess={handleProcessDocument}
             />
           ) : activeTab === "chat" ? (
@@ -375,10 +384,10 @@ export default function DocumentWorkspacePage() {
                 <div>
                   <h3 className="text-sm font-bold text-white flex items-center gap-2">
                     <HelpCircle className="w-4 h-4 text-indigo-400" />
-                    <span>Active Recall Quizzes ({materialQuizzes.length})</span>
+                    <span>Practice Quizzes ({materialQuizzes.length})</span>
                   </h3>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Practice assessments generated from this document&apos;s semantic chunks.
+                    Practice assessments generated from this document&apos;s knowledge sections.
                   </p>
                 </div>
 
@@ -493,7 +502,7 @@ export default function DocumentWorkspacePage() {
                   </div>
                   <h3 className="text-sm font-bold text-white">PDF Preview Unavailable</h3>
                   <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                    Storage bucket credentials are required to issue the presigned viewing stream. The document is safely recorded in MongoDB.
+                    Document preview is currently unavailable. You can still download the document or use all AI study aids.
                   </p>
                 </div>
               )
@@ -510,7 +519,7 @@ export default function DocumentWorkspacePage() {
                   </div>
                   <h3 className="text-sm font-bold text-white">Plain Text Document Ready</h3>
                   <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                    View or download the plain text content directly via the presigned URL.
+                    View or download the plain text content directly via the secure preview link.
                   </p>
                   <a
                     href={previewUrl}
@@ -529,7 +538,7 @@ export default function DocumentWorkspacePage() {
                   </div>
                   <h3 className="text-sm font-bold text-white">Text Preview Pending Storage Config</h3>
                   <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                    R2 storage credentials are required to load raw content.
+                    Preview is currently unavailable. Please use the download option or access study aids.
                   </p>
                 </div>
               )
@@ -540,12 +549,12 @@ export default function DocumentWorkspacePage() {
 
         {/* Right / Metadata & Future AI Actions Panel (B1 & B3) */}
         <div className="space-y-6">
-          {/* AI Ingestion Pipeline Card (Milestone 5) */}
+          {/* AI Ingestion Pipeline Card */}
           <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
                 <Brain className="w-4 h-4 text-brand-400" />
-                <span>AI Ingestion Pipeline</span>
+                <span>AI Study Analysis</span>
               </h2>
               <Badge
                 variant={
@@ -603,7 +612,7 @@ export default function DocumentWorkspacePage() {
                   <div className="bg-gradient-to-r from-brand-500 to-teal-400 h-full w-2/3 animate-pulse rounded-full" />
                 </div>
                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Extracting text, computing semantic boundaries, and indexing 768-dimensional Gemini embeddings in MongoDB.
+                  Extracting content, analyzing key concepts, and indexing study sections for interactive learning.
                 </p>
               </div>
             ) : documentData.processingStatus === "ready" ? (
@@ -615,7 +624,7 @@ export default function DocumentWorkspacePage() {
                   </div>
                   <div className="grid grid-cols-2 gap-2 pt-1 text-[11px]">
                     <div className="p-2 rounded-lg bg-slate-900/80 border border-slate-800">
-                      <span className="text-slate-400 block">Chunks</span>
+                      <span className="text-slate-400 block">Sections</span>
                       <span className="text-white font-mono font-bold text-sm">
                         {documentData.chunkCount || 0}
                       </span>
@@ -633,9 +642,9 @@ export default function DocumentWorkspacePage() {
                       </span>
                     </div>
                     <div className="p-2 rounded-lg bg-slate-900/80 border border-slate-800">
-                      <span className="text-slate-400 block">Vector Model</span>
+                      <span className="text-slate-400 block">AI Indexing</span>
                       <span className="text-brand-300 font-mono font-semibold text-[10px]">
-                        768-dim (text-emb-004)
+                        Active & Ready
                       </span>
                     </div>
                   </div>
@@ -655,7 +664,7 @@ export default function DocumentWorkspacePage() {
             ) : (
               <div className="space-y-3">
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Extract text, segment semantic passages (800–1,200 chars), and create 768-dim Gemini vector embeddings for AI study aids.
+                  Extract text, segment knowledge sections, and generate semantic indexing for AI study aids.
                 </p>
 
                 <Button
@@ -861,7 +870,7 @@ export default function DocumentWorkspacePage() {
                   </div>
                   <div>
                     <p className="text-xs font-bold text-white group-hover:text-indigo-300">Generate Quiz</p>
-                    <p className="text-[10px] text-slate-500">Active recall practice</p>
+                    <p className="text-[10px] text-slate-500">Practice quiz session</p>
                   </div>
                 </div>
                 <Badge variant="teal" size="sm">Live</Badge>
@@ -891,16 +900,16 @@ export default function DocumentWorkspacePage() {
             </div>
           )}
 
-          <div className="p-3.5 rounded-xl bg-surface-50 border border-surface-200 space-y-1 text-xs">
-            <p className="font-bold text-surface-900">{documentData.title}</p>
-            <p className="text-surface-500">{documentData.originalFilename}</p>
+          <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1 text-xs">
+            <p className="font-bold text-white">{documentData.title}</p>
+            <p className="text-slate-400">{documentData.originalFilename}</p>
           </div>
 
           <p className="text-xs text-danger-600 font-medium">
             Warning: This action is permanent and cannot be undone.
           </p>
 
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-surface-200">
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
             <Button
               variant="outline"
               size="sm"

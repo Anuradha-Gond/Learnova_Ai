@@ -173,11 +173,8 @@ export default function SettingsPage() {
       <div>
         <div className="flex items-center gap-2.5">
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Account Settings & Preferences
+            Account Preferences
           </h1>
-          <Badge variant="teal" size="sm">
-            Milestone 8
-          </Badge>
         </div>
         <p className="text-xs sm:text-sm text-slate-400 mt-1">
           Manage your student profile, academic focus, target examinations, and security credentials.

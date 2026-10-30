@@ -7,55 +7,68 @@
 :root {
   --font-inter: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-outfit: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  
+  /* Primary SaaS Dark Palette Variables */
+  --bg-main: #0B1120;
+  --bg-subtle: #111827;
+  --bg-card: #172033;
+  --bg-elevated: #1E293B;
+  --text-main: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --border-main: #334155;
+  --primary-accent: #6366F1;
+  --primary-hover: #4F46E5;
+  --learning-indicator: #14B8A6;
+  --ai-highlight: #8B5CF6;
 }
 
 body {
   font-family: var(--font-inter);
-  color: #1e293b; /* surface-800: readable, high-contrast slate text */
-  background-color: #f8fafc; /* surface-50: clean light neutral background */
+  color: #F8FAFC; /* Main Text: #F8FAFC */
+  background-color: #0B1120; /* Main Background: #0B1120 */
   min-height: 100vh;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom scrollbar matching light aesthetic */
+/* Custom scrollbar matching dark aesthetic */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #0B1120;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #334155;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #475569;
 }
 
 /* Subtle gradient text utility using Deep Indigo and Teal */
 .text-gradient {
-  background: linear-gradient(135deg, #3730a3 0%, #4338ca 50%, #0d9488 100%);
+  background: linear-gradient(135deg, #818CF8 0%, #6366F1 50%, #14B8A6 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-/* Interactive card hover */
+/* Interactive card matching dark SaaS theme */
 .edu-card {
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
+  background-color: #172033;
+  border: 1px solid #334155;
   border-radius: 1rem;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.25);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .edu-card-hover:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 10px 25px -5px rgba(67, 56, 202, 0.08), 0 8px 10px -6px rgba(67, 56, 202, 0.04);
+  border-color: #475569;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(99, 102, 241, 0.12);
   transform: translateY(-2px);
 }

@@ -20,6 +20,7 @@ import { isAIConfigured } from "@/lib/ai/index.js";
  * 6. Returns structured answer and verified source excerpts.
  */
 export async function POST(request, { params }) {
+  const resolvedParams = await params;
   try {
     let user;
     try {
@@ -31,7 +32,7 @@ export async function POST(request, { params }) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = resolvedParams;
     const idValidation = objectIdSchema.safeParse(id);
     if (!idValidation.success) {
       return Response.json({ error: "Invalid material identifier format" }, { status: 400 });
@@ -130,11 +131,13 @@ export async function POST(request, { params }) {
       console.error(`[POST /api/materials/${id}/chat] RAG generation error:`, ragErr.message);
       const isRateLimit =
         ragErr.message.includes("rate limit") || ragErr.message.includes("429");
+      const status = ragErr.httpStatus || (isRateLimit ? 429 : 500);
       return Response.json(
         {
           error: ragErr.message || "Failed to generate grounded answer.",
+          code: ragErr.code || (isRateLimit ? "AI_RATE_LIMIT" : "AI_GEN_ERROR"),
         },
-        { status: isRateLimit ? 429 : 500 }
+        { status }
       );
     }
 
@@ -168,7 +171,7 @@ export async function POST(request, { params }) {
       conversationId: activeConversationId,
     });
   } catch (err) {
-    console.error(`[POST /api/materials/${params?.id}/chat] Unexpected error:`, err.message);
+    console.error(`[POST /api/materials/${resolvedParams?.id}/chat] Unexpected error:`, err.message);
     return Response.json(
       { error: "An unexpected server error occurred while processing your question." },
       { status: 500 }
@@ -182,6 +185,7 @@ export async function POST(request, { params }) {
  * Retrieves conversation history for the authenticated student and material.
  */
 export async function GET(request, { params }) {
+  const resolvedParams = await params;
   try {
     let user;
     try {
@@ -193,7 +197,7 @@ export async function GET(request, { params }) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = resolvedParams;
     const idValidation = objectIdSchema.safeParse(id);
     if (!idValidation.success) {
       return Response.json({ error: "Invalid material identifier format" }, { status: 400 });
@@ -246,7 +250,7 @@ export async function GET(request, { params }) {
       conversationId: filter.conversationId || `conv_${id}_${user.id}`,
     });
   } catch (err) {
-    console.error(`[GET /api/materials/${params?.id}/chat] Error:`, err.message);
+    console.error(`[GET /api/materials/${resolvedParams?.id}/chat] Error:`, err.message);
     return Response.json(
       { error: "Failed to retrieve conversation history." },
       { status: 500 }
@@ -261,6 +265,7 @@ export async function GET(request, { params }) {
  * Does NOT delete the document or its chunks.
  */
 export async function DELETE(request, { params }) {
+  const resolvedParams = await params;
   try {
     let user;
     try {
@@ -272,7 +277,7 @@ export async function DELETE(request, { params }) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = resolvedParams;
     const idValidation = objectIdSchema.safeParse(id);
     if (!idValidation.success) {
       return Response.json({ error: "Invalid material identifier format" }, { status: 400 });
@@ -299,7 +304,7 @@ export async function DELETE(request, { params }) {
       deletedCount: result.deletedCount || 0,
     });
   } catch (err) {
-    console.error(`[DELETE /api/materials/${params?.id}/chat] Error:`, err.message);
+    console.error(`[DELETE /api/materials/${resolvedParams?.id}/chat] Error:`, err.message);
     return Response.json(
       { error: "Failed to clear conversation history." },
       { status: 500 }

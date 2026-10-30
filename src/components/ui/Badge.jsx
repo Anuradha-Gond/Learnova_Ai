@@ -4,13 +4,13 @@ import React from "react";
 import { cn } from "@/lib/utils";
 
 const badgeVariants = {
-  neutral: "bg-surface-100 text-surface-700 border-surface-200",
-  primary: "bg-brand-50 text-brand-800 border-brand-200",
-  teal: "bg-teal-50 text-teal-800 border-teal-200",
-  violet: "bg-violet-50 text-violet-800 border-violet-200",
-  success: "bg-success-50 text-success-700 border-emerald-200",
-  warning: "bg-warning-50 text-warning-700 border-amber-200",
-  danger: "bg-danger-50 text-danger-700 border-rose-200",
+  neutral: "bg-slate-800/80 text-slate-300 border-slate-700",
+  primary: "bg-brand-950/80 text-brand-300 border-brand-800/60",
+  teal: "bg-teal-950/80 text-teal-300 border-teal-800/60",
+  violet: "bg-violet-950/80 text-violet-300 border-violet-800/60",
+  success: "bg-emerald-950/80 text-emerald-300 border-emerald-800/60",
+  warning: "bg-amber-950/80 text-amber-300 border-amber-800/60",
+  danger: "bg-rose-950/80 text-rose-300 border-rose-800/60",
 };
 
 export default function Badge({

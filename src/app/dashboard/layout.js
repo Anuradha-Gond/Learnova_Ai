@@ -42,7 +42,7 @@ export default function DashboardLayout({ children }) {
             {/* Desktop Workspace Breadcrumb / Badge */}
             <div className="hidden lg:flex items-center gap-2 text-xs">
               <span className="text-slate-400">Workspace /</span>
-              <span className="font-semibold text-white">Student Dashboard</span>
+              <span className="font-semibold text-white">Overview</span>
             </div>
           </div>
 

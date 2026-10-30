@@ -1,6 +1,6 @@
 import { connectDB } from "@/lib/db/index.js";
 import MaterialChunk from "@/models/MaterialChunk.js";
-import { getGenerativeModel, isAIConfigured, AI_MODELS } from "@/lib/ai/index.js";
+import { getGenerativeModel, isAIConfigured, AI_MODELS, callGeminiWithRetry } from "@/lib/ai/index.js";
 import { generateChunkEmbedding, EMBEDDING_CONFIG } from "./embeddingService.js";
 
 /**
@@ -326,24 +326,24 @@ export async function generateGroundedAnswer({
   let responseText = "";
 
   try {
-    if (formattedHistory.length > 0) {
-      // Use multi-turn chat session with grounded prompt as the latest turn
-      const chat = model.startChat({
-        history: formattedHistory,
-      });
-      const result = await chat.sendMessage(prompt);
-      responseText = result?.response?.text() || "";
-    } else {
-      const result = await model.generateContent(prompt);
-      responseText = result?.response?.text() || "";
-    }
+    const result = await callGeminiWithRetry(
+      () => {
+        if (formattedHistory.length > 0) {
+          const chat = model.startChat({ history: formattedHistory });
+          return chat.sendMessage(prompt);
+        }
+        return model.generateContent(prompt);
+      },
+      {
+        context: "ragService.generateGroundedAnswer",
+        maxRetries: 1,
+        baseDelayMs: 400,
+      }
+    );
+    responseText = result?.response?.text() || "";
   } catch (aiErr) {
     console.error("[ragService] Gemini generation error:", aiErr.message);
-    const isRateLimit = aiErr.message?.includes("429") || aiErr.message?.toLowerCase().includes("quota");
-    if (isRateLimit) {
-      throw new Error("Gemini AI rate limit reached. Please wait a moment before asking again.");
-    }
-    throw new Error("Failed to generate answer from AI assistant. Please try again.");
+    throw aiErr;
   }
 
   // 7. Format clean source citations for the client interface

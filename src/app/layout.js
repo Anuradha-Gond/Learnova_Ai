@@ -22,7 +22,7 @@ export default function RootLayout({ children }) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </head>
-      <body className="bg-slate-950 text-slate-100 antialiased selection:bg-brand-500/30 selection:text-brand-200">
+      <body className="bg-canvas text-surface-900 antialiased selection:bg-brand-500/30 selection:text-brand-200">
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

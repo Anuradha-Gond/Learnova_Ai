@@ -17,6 +17,7 @@ import { processMaterialDocument } from "@/services/ingestionService.js";
  * 7. Records error and sets status to "failed" on any pipeline failure.
  */
 export async function POST(request, { params }) {
+  const resolvedParams = await params;
   try {
     let user;
     try {
@@ -28,7 +29,7 @@ export async function POST(request, { params }) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = resolvedParams;
     const idValidation = objectIdSchema.safeParse(id);
     if (!idValidation.success) {
       return Response.json({ error: "Invalid material identifier format" }, { status: 400 });
@@ -83,7 +84,7 @@ export async function POST(request, { params }) {
       );
     }
   } catch (err) {
-    console.error(`[POST /api/materials/${params?.id}/process] Unexpected error:`, err.message);
+    console.error(`[POST /api/materials/${resolvedParams?.id}/process] Unexpected error:`, err.message);
     return Response.json(
       { error: "An unexpected server error occurred during document processing." },
       { status: 500 }

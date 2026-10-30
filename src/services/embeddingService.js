@@ -1,4 +1,4 @@
-import { getEmbeddingModel, isAIConfigured, AI_MODELS, AI_CONFIG } from "@/lib/ai/index.js";
+import { getEmbeddingModel, isAIConfigured, AI_MODELS, AI_CONFIG, classifyGeminiError } from "@/lib/ai/index.js";
 
 /**
  * Gemini Vector Embedding Service
@@ -83,29 +83,21 @@ export async function generateChunkEmbedding(text, retries = EMBEDDING_CONFIG.ma
       return vector;
     } catch (err) {
       attempt++;
-      const isRateLimit =
-        err.status === 429 ||
-        err.message?.includes("429") ||
-        err.message?.toLowerCase().includes("quota") ||
-        err.message?.toLowerCase().includes("rate limit");
+      const classified = classifyGeminiError(err);
 
-      const isTransientNetwork =
-        err.name === "FetchError" ||
-        err.message?.toLowerCase().includes("timeout") ||
-        err.message?.toLowerCase().includes("network");
-
-      if ((isRateLimit || isTransientNetwork) && attempt <= retries) {
+      if (classified.isRetryable && attempt <= retries) {
         // Exponential backoff with random jitter (1000ms -> 2000ms -> 4000ms + random jitter)
         const jitter = Math.random() * 500;
         const delay = EMBEDDING_CONFIG.initialBackoffMs * Math.pow(2, attempt - 1) + jitter;
         console.warn(
-          `[Gemini Embedding] Transient error (attempt ${attempt}/${retries}): ${err.message}. Retrying in ${Math.round(delay)}ms...`
+          `[Gemini Embedding] Transient error (${classified.code}) on attempt ${attempt}/${retries}: ${err.message}. Retrying in ${Math.round(delay)}ms...`
         );
         await new Promise((resolve) => setTimeout(resolve, delay));
       } else {
-        throw new Error(
-          `Failed to generate embedding after ${attempt} attempts: ${err.message}`
-        );
+        const error = new Error(classified.userMessage || `Failed to generate embedding: ${err.message}`);
+        error.code = classified.code;
+        error.httpStatus = classified.httpStatus;
+        throw error;
       }
     }
   }

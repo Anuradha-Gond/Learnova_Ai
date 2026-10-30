@@ -16,6 +16,7 @@ const simplifyRequestSchema = z.object({
  * Explains a specific concept from the document in student-friendly terms with analogies and citations.
  */
 export async function POST(request, { params }) {
+  const resolvedParams = await params;
   try {
     let user;
     try {
@@ -25,7 +26,7 @@ export async function POST(request, { params }) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = resolvedParams;
     const idValidation = objectIdSchema.safeParse(id);
     if (!idValidation.success) {
       return Response.json({ error: "Invalid material identifier format" }, { status: 400 });
@@ -73,11 +74,15 @@ export async function POST(request, { params }) {
       ...result,
     });
   } catch (err) {
-    console.error(`[POST /api/materials/${params?.id}/simplify] Error:`, err.message);
+    console.error(`[POST /api/materials/${resolvedParams?.id}/simplify] Error:`, err.message);
     const isConfigError = err.message.includes("GEMINI_API_KEY");
+    const status = err.httpStatus || (isConfigError ? 503 : 500);
     return Response.json(
-      { error: err.message || "Failed to simplify concept." },
-      { status: isConfigError ? 503 : 500 }
+      {
+        error: err.message || "Failed to simplify concept.",
+        code: err.code || (isConfigError ? "AI_NOT_CONFIGURED" : "AI_GEN_ERROR"),
+      },
+      { status }
     );
   }
 }

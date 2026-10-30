@@ -159,11 +159,8 @@ export default function RevisionPage() {
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Personalized Revision Feed
+              Personalized Revision Plan
             </h1>
-            <Badge variant="teal" size="sm">
-              Milestone 8
-            </Badge>
           </div>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
             Targeted study interventions, weak-topic review cards, and recommended practice sessions.
@@ -377,47 +374,45 @@ export default function RevisionPage() {
 
                 {/* Footer: Multi-Action Toolbar */}
                 <div className="pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-xs">
-                  {/* Action Link Targets */}
-                  <div className="flex items-center gap-1.5">
-                    {rec.materialId && (
-                      <Link href={`/materials/${rec.materialId}`}>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-[11px] h-7 px-2 bg-slate-900 border-slate-700 text-slate-300 hover:text-white"
-                          title="Open related study notes"
-                        >
-                          <BookOpen className="w-3 h-3 mr-1" />
-                          <span>Notes</span>
-                        </Button>
-                      </Link>
-                    )}
+                    {/* Action Link Targets */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {rec.materialId && (
+                        <Link href={`/materials/${rec.materialId}`}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-[11px] h-7 px-2.5 bg-slate-900 border-slate-700 text-slate-300 hover:text-white"
+                            title="Open related study notes"
+                          >
+                            <BookOpen className="w-3 h-3 mr-1 text-brand-400" />
+                            <span>Notes</span>
+                          </Button>
+                        </Link>
+                      )}
 
-                    {rec.materialId && (
-                      <Link href={`/materials/${rec.materialId}`}>
+                      <Link href="/assistant">
                         <Button
                           size="sm"
                           variant="outline"
-                          className="text-[11px] h-7 px-2 bg-slate-900 border-slate-700 text-slate-300 hover:text-white"
+                          className="text-[11px] h-7 px-2.5 bg-slate-900 border-slate-700 text-slate-300 hover:text-white"
                           title="Ask AI Assistant about this topic"
                         >
-                          <Bot className="w-3 h-3 mr-1" />
-                          <span>Assistant</span>
+                          <Bot className="w-3 h-3 mr-1 text-teal-400" />
+                          <span>AI Tutor</span>
                         </Button>
                       </Link>
-                    )}
 
-                    <Link href="/quizzes">
-                      <Button
-                        size="sm"
-                        className="text-[11px] h-7 px-2 bg-brand-600 hover:bg-brand-500 text-white"
-                        title="Practice with active-recall quiz"
-                      >
-                        <HelpCircle className="w-3 h-3 mr-1" />
-                        <span>Quiz</span>
-                      </Button>
-                    </Link>
-                  </div>
+                      <Link href="/quizzes">
+                        <Button
+                          size="sm"
+                          className="text-[11px] h-7 px-2.5 bg-brand-600 hover:bg-brand-500 text-white shadow-sm"
+                          title="Practice with active-recall quiz"
+                        >
+                          <HelpCircle className="w-3 h-3 mr-1" />
+                          <span>Quiz</span>
+                        </Button>
+                      </Link>
+                    </div>
 
                   {/* Status Toggle Buttons */}
                   <div className="flex items-center gap-1">

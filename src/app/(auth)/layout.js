@@ -45,7 +45,7 @@ export default function AuthLayout({ children }) {
 
         {/* Footer Note */}
         <p className="mt-6 text-center text-xs text-slate-500">
-          Protected by server-side bcrypt encryption & secure JWT session management.
+          Protected by secure, encrypted session authentication.
         </p>
       </div>
     </div>

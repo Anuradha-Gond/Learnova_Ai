@@ -10,6 +10,7 @@ import { generateDocumentSummary } from "@/services/studyAidsService.js";
  * Retrieves the existing saved summary for the document, if generated.
  */
 export async function GET(request, { params }) {
+  const resolvedParams = await params;
   try {
     let user;
     try {
@@ -19,7 +20,7 @@ export async function GET(request, { params }) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = resolvedParams;
     const idValidation = objectIdSchema.safeParse(id);
     if (!idValidation.success) {
       return Response.json({ error: "Invalid material identifier format" }, { status: 400 });
@@ -39,7 +40,7 @@ export async function GET(request, { params }) {
       wordCount: material.wordCount || 0,
     });
   } catch (err) {
-    console.error(`[GET /api/materials/${params?.id}/summary] Error:`, err.message);
+    console.error(`[GET /api/materials/${resolvedParams?.id}/summary] Error:`, err.message);
     return Response.json({ error: "Failed to retrieve summary." }, { status: 500 });
   }
 }
@@ -50,6 +51,7 @@ export async function GET(request, { params }) {
  * Triggers generation of an academic summary using Gemini Flash grounded in document chunks.
  */
 export async function POST(request, { params }) {
+  const resolvedParams = await params;
   try {
     let user;
     try {
@@ -59,7 +61,7 @@ export async function POST(request, { params }) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    const { id } = params;
+    const { id } = resolvedParams;
     const idValidation = objectIdSchema.safeParse(id);
     if (!idValidation.success) {
       return Response.json({ error: "Invalid material identifier format" }, { status: 400 });
@@ -101,11 +103,15 @@ export async function POST(request, { params }) {
       ...summaryResult,
     });
   } catch (err) {
-    console.error(`[POST /api/materials/${params?.id}/summary] Error:`, err.message);
+    console.error(`[POST /api/materials/${resolvedParams?.id}/summary] Error:`, err.message);
     const isConfigError = err.message.includes("GEMINI_API_KEY");
+    const status = err.httpStatus || (isConfigError ? 503 : 500);
     return Response.json(
-      { error: err.message || "Failed to generate summary from study material." },
-      { status: isConfigError ? 503 : 500 }
+      {
+        error: err.message || "Failed to generate summary from study material.",
+        code: err.code || (isConfigError ? "AI_NOT_CONFIGURED" : "AI_GEN_ERROR"),
+      },
+      { status }
     );
   }
 }

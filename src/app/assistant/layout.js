@@ -45,7 +45,7 @@ export default function AssistantLayout({ children }) {
                 Workspace
               </Link>
               <span className="text-slate-600">/</span>
-              <span className="font-semibold text-white">AI Learning Assistant</span>
+              <span className="font-semibold text-white">AI Study Assistant</span>
             </div>
           </div>
 

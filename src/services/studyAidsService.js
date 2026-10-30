@@ -1,7 +1,7 @@
 import { connectDB } from "@/lib/db/index.js";
 import Material from "@/models/Material.js";
 import MaterialChunk from "@/models/MaterialChunk.js";
-import { getGenerativeModel, isAIConfigured, AI_MODELS } from "@/lib/ai/index.js";
+import { getGenerativeModel, isAIConfigured, AI_MODELS, callGeminiWithRetry } from "@/lib/ai/index.js";
 import { retrieveRelevantChunks } from "./ragService.js";
 import { generateChunkEmbedding } from "./embeddingService.js";
 
@@ -102,14 +102,14 @@ RULES:
 
   let summaryText = "";
   try {
-    const result = await model.generateContent(prompt);
+    const result = await callGeminiWithRetry(() => model.generateContent(prompt), {
+      context: "studyAidsService.generateDocumentSummary",
+      maxRetries: 1,
+      baseDelayMs: 400,
+    });
     summaryText = result?.response?.text() || "";
   } catch (err) {
-    const isRateLimit = err.message?.includes("429") || err.message?.toLowerCase().includes("quota");
-    if (isRateLimit) {
-      throw new Error("Gemini AI rate limit reached. Please wait a moment and try again.");
-    }
-    throw new Error(`Failed to generate summary: ${err.message}`);
+    throw err;
   }
 
   if (!summaryText || summaryText.trim().length === 0) {
@@ -220,14 +220,14 @@ RULES:
 
   let explanationText = "";
   try {
-    const result = await model.generateContent(prompt);
+    const result = await callGeminiWithRetry(() => model.generateContent(prompt), {
+      context: "studyAidsService.simplifyConcept",
+      maxRetries: 1,
+      baseDelayMs: 400,
+    });
     explanationText = result?.response?.text() || "";
   } catch (err) {
-    const isRateLimit = err.message?.includes("429") || err.message?.toLowerCase().includes("quota");
-    if (isRateLimit) {
-      throw new Error("Gemini AI rate limit reached. Please wait a moment and try again.");
-    }
-    throw new Error(`Failed to simplify concept: ${err.message}`);
+    throw err;
   }
 
   const sources = retrievedChunks.map((chunk) => {

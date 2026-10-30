@@ -20,6 +20,9 @@ import {
   Sparkles,
   RefreshCw,
   HardDrive,
+  LayoutGrid,
+  List,
+  Check,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -29,6 +32,7 @@ import Dialog from "@/components/ui/Dialog";
 import ErrorState from "@/components/ui/ErrorState";
 import { SkeletonCard } from "@/components/ui/Skeleton";
 import { formatFileSize, validateUploadFile } from "@/services/documentService";
+import { cn } from "@/lib/utils";
 
 export default function MaterialsPage() {
   const [materials, setMaterials] = useState([]);
@@ -39,8 +43,10 @@ export default function MaterialsPage() {
   // Search, filter, and sort state
   const [searchQuery, setSearchQuery] = useState("");
   const [fileTypeFilter, setFileTypeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState("createdAt");
   const [sortOrder, setSortOrder] = useState("desc");
+  const [viewMode, setViewMode] = useState("grid"); // "grid" | "list"
 
   // Upload modal state
   const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -124,6 +130,15 @@ export default function MaterialsPage() {
     }
   };
 
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    setCustomTitle("");
+    setUploadError("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   // Submit file upload
   const handleUploadSubmit = async (e) => {
     e.preventDefault();
@@ -153,7 +168,7 @@ export default function MaterialsPage() {
       }
 
       // Success
-      setSuccessMessage(`"${data.material.title}" uploaded successfully!`);
+      setSuccessMessage(`"${data.material.title}" added to your Learning Library!`);
       setIsUploadOpen(false);
       setSelectedFile(null);
       setCustomTitle("");
@@ -164,8 +179,8 @@ export default function MaterialsPage() {
 
       // Clear banner after 5 seconds
       setTimeout(() => setSuccessMessage(""), 5000);
-    } catch (err) {
-      setUploadError("Network error occurred during upload. Please try again.");
+    } catch {
+      setUploadError("Network error occurred during upload. Please check your connection.");
       setIsUploading(false);
     }
   };
@@ -197,7 +212,7 @@ export default function MaterialsPage() {
       setIsDeleting(false);
 
       setTimeout(() => setSuccessMessage(""), 5000);
-    } catch (err) {
+    } catch {
       setDeleteError("Network error occurred while deleting document.");
       setIsDeleting(false);
     }
@@ -207,6 +222,9 @@ export default function MaterialsPage() {
   const filteredMaterials = materials
     .filter((m) => {
       if (fileTypeFilter !== "all" && m.fileType !== fileTypeFilter) {
+        return false;
+      }
+      if (statusFilter !== "all" && m.processingStatus !== statusFilter) {
         return false;
       }
       if (searchQuery.trim()) {
@@ -227,6 +245,9 @@ export default function MaterialsPage() {
       } else if (sortBy === "title") {
         valA = (valA || "").toLowerCase();
         valB = (valB || "").toLowerCase();
+      } else if (sortBy === "fileSizeBytes") {
+        valA = valA || 0;
+        valB = valB || 0;
       }
 
       if (sortOrder === "asc") {
@@ -241,13 +262,18 @@ export default function MaterialsPage() {
       case "ready":
         return (
           <Badge variant="success" size="sm">
-            {material.chunkCount ? `${material.chunkCount} Chunks` : "Ready"}
+            {material.chunkCount ? `${material.chunkCount} Sections Ready` : "Ready"}
           </Badge>
         );
       case "processing":
-        return <Badge variant="teal" size="sm">Processing</Badge>;
+        return (
+          <Badge variant="teal" size="sm" className="gap-1 inline-flex items-center">
+            <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
+            <span>Processing</span>
+          </Badge>
+        );
       case "failed":
-        return <Badge variant="danger" size="sm">Failed</Badge>;
+        return <Badge variant="danger" size="sm">Processing Failed</Badge>;
       case "pending":
       default:
         return <Badge variant="primary" size="sm">Stored</Badge>;
@@ -255,18 +281,18 @@ export default function MaterialsPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-fade-in">
       {/* ── Page Header ───────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-slate-800">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold font-display text-white tracking-tight">
-              Study Materials
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl sm:text-3xl font-extrabold font-display text-white tracking-tight">
+              Learning Library
             </h1>
             <Badge variant="neutral" size="sm">{materials.length} Documents</Badge>
           </div>
-          <p className="text-xs text-slate-400">
-            Upload, organize, and view your study documents in private, encrypted cloud storage.
+          <p className="text-xs sm:text-sm text-slate-400">
+            Keep your course materials organized in one secure place and generate grounded AI study aids.
           </p>
         </div>
 
@@ -277,10 +303,10 @@ export default function MaterialsPage() {
             setUploadError("");
             setIsUploadOpen(true);
           }}
-          className="gap-2 bg-brand-600 hover:bg-brand-500 text-white shadow-md shadow-brand-500/20"
+          className="gap-2 bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-600/20"
         >
           <Upload className="w-4 h-4" />
-          <span>Upload Material</span>
+          <span>Add Learning Material</span>
         </Button>
       </div>
 
@@ -291,7 +317,7 @@ export default function MaterialsPage() {
             <div className="flex items-center gap-2">
               <HardDrive className="w-4 h-4 text-brand-400" />
               <span className="text-xs font-bold text-white uppercase tracking-wider">
-                Cloudflare R2 Storage Quota
+                Storage Usage
               </span>
               {storage.isFull && (
                 <Badge variant="danger" size="sm">
@@ -304,7 +330,9 @@ export default function MaterialsPage() {
                 {formatFileSize(storage.usedBytes)}
               </span>{" "}
               used of{" "}
-              <span className="font-semibold text-slate-200">8.5 GB</span> (
+              <span className="font-semibold text-slate-200">
+                {storage.maxStorageBytes ? `${(storage.maxStorageBytes / 1_000_000_000).toFixed(1)} GB` : "8.5 GB"}
+              </span> (
               {storage.usagePercentage}%) •{" "}
               <span className="text-slate-300">
                 {formatFileSize(storage.remainingBytes)} remaining
@@ -334,14 +362,16 @@ export default function MaterialsPage() {
             />
           </div>
 
-          <div className="flex items-center justify-between text-[11px] text-slate-500">
+          <div className="flex items-center justify-between text-[11px] text-slate-400">
             <span>Maximum file size: 20 MB (PDF or TXT)</span>
             {storage.isFull ? (
               <span className="text-rose-400 font-semibold flex items-center gap-1">
                 <AlertCircle className="w-3.5 h-3.5" /> Quota full. Please delete older documents.
               </span>
             ) : (
-              <span className="text-emerald-400 font-medium">Quota Available</span>
+              <span className="text-emerald-400 font-medium flex items-center gap-1">
+                <Check className="w-3.5 h-3.5" /> Quota Available
+              </span>
             )}
           </div>
         </div>
@@ -365,63 +395,70 @@ export default function MaterialsPage() {
       )}
 
       {/* ── Search, Filter & Sort Controls ────────────────────────── */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-slate-900/60 border border-slate-800 p-4 rounded-2xl">
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 bg-slate-900/60 border border-slate-800 p-4 rounded-2xl">
         {/* Search Input */}
         <div className="flex-1 relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
             <Search className="w-4 h-4" />
           </div>
           <input
             type="text"
-            placeholder="Search by title or filename..."
+            placeholder="Search documents by title or filename..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-brand-500 transition-colors"
+            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-9 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-brand-500 transition-colors"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
               className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-300"
+              aria-label="Clear search"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
 
-        {/* Filter & Sort Controls */}
+        {/* Filters, Sort & View Mode */}
         <div className="flex flex-wrap items-center gap-3">
-          {/* File Type Filter Tabs */}
+          {/* File Type Filter */}
           <div className="flex items-center p-1 bg-slate-950 border border-slate-800 rounded-xl text-xs">
-            <button
-              onClick={() => setFileTypeFilter("all")}
-              className={`px-3 py-1 rounded-lg font-medium transition-colors ${
-                fileTypeFilter === "all"
-                  ? "bg-brand-600 text-white shadow-sm"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setFileTypeFilter("pdf")}
-              className={`px-3 py-1 rounded-lg font-medium transition-colors ${
-                fileTypeFilter === "pdf"
-                  ? "bg-brand-600 text-white shadow-sm"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              PDF
-            </button>
-            <button
-              onClick={() => setFileTypeFilter("txt")}
-              className={`px-3 py-1 rounded-lg font-medium transition-colors ${
-                fileTypeFilter === "txt"
-                  ? "bg-brand-600 text-white shadow-sm"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              TXT
-            </button>
+            {["all", "pdf", "txt"].map((type) => (
+              <button
+                key={type}
+                onClick={() => setFileTypeFilter(type)}
+                className={cn(
+                  "px-3 py-1 rounded-lg font-medium transition-colors uppercase",
+                  fileTypeFilter === type
+                    ? "bg-brand-600 text-white shadow-sm font-semibold"
+                    : "text-slate-400 hover:text-white"
+                )}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+
+          {/* Status Filter */}
+          <div className="flex items-center p-1 bg-slate-950 border border-slate-800 rounded-xl text-xs">
+            {[
+              { id: "all", label: "All Status" },
+              { id: "ready", label: "Ready" },
+              { id: "pending", label: "Stored" },
+            ].map((st) => (
+              <button
+                key={st.id}
+                onClick={() => setStatusFilter(st.id)}
+                className={cn(
+                  "px-2.5 py-1 rounded-lg font-medium transition-colors",
+                  statusFilter === st.id
+                    ? "bg-brand-600 text-white shadow-sm font-semibold"
+                    : "text-slate-400 hover:text-white"
+                )}
+              >
+                {st.label}
+              </button>
+            ))}
           </div>
 
           {/* Sort Dropdown */}
@@ -442,15 +479,45 @@ export default function MaterialsPage() {
               <option value="fileSizeBytes-desc" className="bg-slate-900 text-white">Largest Size</option>
             </select>
           </div>
+
+          {/* View Toggle */}
+          <div className="flex items-center p-1 bg-slate-950 border border-slate-800 rounded-xl text-xs">
+            <button
+              onClick={() => setViewMode("grid")}
+              className={cn(
+                "p-1.5 rounded-lg transition-colors",
+                viewMode === "grid"
+                  ? "bg-slate-800 text-brand-400"
+                  : "text-slate-400 hover:text-slate-200"
+              )}
+              title="Grid View"
+              aria-label="Grid View"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setViewMode("list")}
+              className={cn(
+                "p-1.5 rounded-lg transition-colors",
+                viewMode === "list"
+                  ? "bg-slate-800 text-brand-400"
+                  : "text-slate-400 hover:text-slate-200"
+              )}
+              title="List View"
+              aria-label="List View"
+            >
+              <List className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
 
       {/* ── Materials Grid / List ─────────────────────────────────── */}
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <SkeletonCard className="bg-slate-900/60 border-slate-800" />
-          <SkeletonCard className="bg-slate-900/60 border-slate-800" />
-          <SkeletonCard className="bg-slate-900/60 border-slate-800" />
+          <SkeletonCard className="bg-slate-900/60 border-slate-800 h-48" />
+          <SkeletonCard className="bg-slate-900/60 border-slate-800 h-48" />
+          <SkeletonCard className="bg-slate-900/60 border-slate-800 h-48" />
         </div>
       ) : error ? (
         <ErrorState
@@ -484,7 +551,7 @@ export default function MaterialsPage() {
         <EmptyState
           icon={Search}
           title="No matching materials found"
-          description={`No documents match your search "${searchQuery}" or the selected filters.`}
+          description={`No documents match your query "${searchQuery}" or the selected filters.`}
           action={
             <Button
               variant="outline"
@@ -492,6 +559,7 @@ export default function MaterialsPage() {
               onClick={() => {
                 setSearchQuery("");
                 setFileTypeFilter("all");
+                setStatusFilter("all");
               }}
               className="bg-slate-900 border-slate-700 text-slate-300 mt-2"
             >
@@ -500,22 +568,24 @@ export default function MaterialsPage() {
           }
           className="bg-slate-900/30 border-slate-800 py-12"
         />
-      ) : (
+      ) : viewMode === "grid" ? (
+        /* Grid View */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredMaterials.map((material) => (
             <div
               key={material.id}
-              className="rounded-2xl bg-slate-900/70 border border-slate-800 p-5 space-y-4 hover:border-slate-700 transition-all duration-150 flex flex-col justify-between group"
+              className="rounded-2xl bg-slate-900/70 border border-slate-800 p-5 space-y-4 hover:border-slate-700 transition-all duration-150 flex flex-col justify-between group shadow-sm hover:shadow-md"
             >
               <div className="space-y-3">
                 {/* Header row: file icon + status */}
                 <div className="flex items-center justify-between">
                   <div
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                    className={cn(
+                      "w-9 h-9 rounded-xl flex items-center justify-center border",
                       material.fileType === "pdf"
-                        ? "bg-rose-950/80 border border-rose-800/50 text-rose-400"
-                        : "bg-teal-950/80 border border-teal-800/50 text-teal-400"
-                    }`}
+                        ? "bg-rose-950/80 border-rose-800/50 text-rose-400"
+                        : "bg-teal-950/80 border-teal-800/50 text-teal-400"
+                    )}
                   >
                     {material.fileType === "pdf" ? (
                       <FileText className="w-4 h-4" />
@@ -577,6 +647,68 @@ export default function MaterialsPage() {
             </div>
           ))}
         </div>
+      ) : (
+        /* List View */
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden divide-y divide-slate-800/80">
+          {filteredMaterials.map((material) => (
+            <div
+              key={material.id}
+              className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-800/40 transition-colors"
+            >
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div
+                  className={cn(
+                    "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border",
+                    material.fileType === "pdf"
+                      ? "bg-rose-950/80 border-rose-800/50 text-rose-400"
+                      : "bg-teal-950/80 border-teal-800/50 text-teal-400"
+                  )}
+                >
+                  {material.fileType === "pdf" ? (
+                    <FileText className="w-4 h-4" />
+                  ) : (
+                    <FileCode className="w-4 h-4" />
+                  )}
+                </div>
+                <div className="min-w-0 space-y-0.5">
+                  <h3 className="text-sm font-bold text-white truncate hover:text-brand-300 transition-colors">
+                    <Link href={`/materials/${material.id}`}>{material.title}</Link>
+                  </h3>
+                  <p className="text-[11px] text-slate-400 truncate">
+                    {material.originalFilename} • {formatFileSize(material.fileSizeBytes)} • {new Date(material.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                {getStatusBadge(material)}
+
+                <Link href={`/materials/${material.id}`}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs gap-1.5 bg-slate-950 border-slate-700 text-slate-300 hover:text-white"
+                  >
+                    <span>Workspace</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </Button>
+                </Link>
+
+                <button
+                  onClick={() => {
+                    setDeleteError("");
+                    setDeleteTarget(material);
+                  }}
+                  className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 rounded-lg border border-slate-800 transition-colors"
+                  title="Delete Document"
+                  aria-label={`Delete ${material.title}`}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
       {/* ── Upload Material Dialog Modal ─────────────────────────── */}
@@ -587,8 +719,8 @@ export default function MaterialsPage() {
             setIsUploadOpen(false);
           }
         }}
-        title="Upload Study Material"
-        description="Select a PDF or TXT document (up to 20 MB) to store in your private workspace."
+        title="Add Learning Material"
+        description="Select a PDF or TXT document (up to 20 MB) to add to your private learning library."
         maxWidth="max-w-lg"
       >
         <form onSubmit={handleUploadSubmit} className="space-y-4">
@@ -596,7 +728,7 @@ export default function MaterialsPage() {
             <div className="p-3 rounded-xl bg-amber-950/70 border border-amber-500/50 text-amber-200 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
               <span>
-                Storage quota is full (8.5 GB limit reached). Please delete older
+                Storage quota is full ({storage?.maxStorageBytes ? `${(storage.maxStorageBytes / 1_000_000_000).toFixed(1)} GB` : "8.5 GB"} limit reached). Please delete older
                 documents to free up space.
               </span>
             </div>
@@ -615,11 +747,12 @@ export default function MaterialsPage() {
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            className={`rounded-2xl border-2 border-dashed p-6 text-center cursor-pointer transition-all ${
+            className={cn(
+              "rounded-2xl border-2 border-dashed p-6 text-center cursor-pointer transition-all",
               isDragOver
                 ? "border-brand-500 bg-brand-500/10"
-                : "border-slate-300 bg-surface-50 hover:border-brand-600 hover:bg-surface-100"
-            }`}
+                : "border-slate-700 bg-slate-900/60 hover:border-brand-500 hover:bg-slate-800/80"
+            )}
           >
             <input
               ref={fileInputRef}
@@ -633,25 +766,41 @@ export default function MaterialsPage() {
               }}
             />
 
-            <div className="w-12 h-12 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center mx-auto mb-3">
+            <div className="w-12 h-12 rounded-xl bg-brand-950/60 text-brand-400 border border-brand-800/50 flex items-center justify-center mx-auto mb-3">
               <Upload className="w-6 h-6" />
             </div>
 
-            <p className="text-sm font-semibold text-surface-900">
-              {selectedFile ? selectedFile.name : "Click to browse or drag & drop"}
+            <p className="text-sm font-semibold text-white">
+              {selectedFile ? "Click to change selected file" : "Click to browse or drag & drop"}
             </p>
-            <p className="text-xs text-surface-500 mt-1">
+            <p className="text-xs text-slate-400 mt-1">
               Supported formats: PDF or TXT • Maximum 20 MB
             </p>
-
-            {selectedFile && (
-              <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 border border-brand-200 text-xs text-brand-800 font-semibold">
-                <span>{formatFileSize(selectedFile.size)}</span>
-                <span>•</span>
-                <span className="uppercase">{selectedFile.name.split(".").pop()}</span>
-              </div>
-            )}
           </div>
+
+          {/* Selected File Card with Remove/Replace affordance */}
+          {selectedFile && (
+            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-brand-950 text-brand-400 flex items-center justify-center shrink-0">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold text-white truncate">{selectedFile.name}</p>
+                  <p className="text-[10px] text-slate-400">{formatFileSize(selectedFile.size)}</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleRemoveFile}
+                className="p-1 rounded text-slate-400 hover:text-rose-400 hover:bg-slate-900 transition-colors shrink-0"
+                title="Remove file"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
 
           {/* Custom Title Input */}
           <Input
@@ -663,21 +812,21 @@ export default function MaterialsPage() {
             disabled={isUploading}
           />
 
-          {/* Indeterminate Progress Bar during upload */}
+          {/* Progress Bar during upload */}
           {isUploading && (
             <div className="space-y-1.5 pt-1">
-              <div className="flex justify-between text-xs text-surface-600 font-semibold">
-                <span>Encrypting & uploading to private storage...</span>
+              <div className="flex justify-between text-xs text-slate-400 font-semibold">
+                <span>Uploading to private secure storage...</span>
                 <span>In progress</span>
               </div>
-              <div className="w-full h-2 bg-surface-200 rounded-full overflow-hidden">
+              <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
                 <div className="h-full bg-brand-600 animate-pulse w-full" />
               </div>
             </div>
           )}
 
           {/* Dialog Action Buttons */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-surface-200">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
             <Button
               variant="outline"
               size="md"
@@ -695,7 +844,7 @@ export default function MaterialsPage() {
               className="gap-2"
             >
               <Upload className="w-4 h-4" />
-              <span>{isUploading ? "Uploading..." : "Confirm Upload"}</span>
+              <span>{isUploading ? "Uploading..." : "Add to Library"}</span>
             </Button>
           </div>
         </form>
@@ -721,10 +870,10 @@ export default function MaterialsPage() {
             </div>
           )}
 
-          <div className="p-3.5 rounded-xl bg-surface-50 border border-surface-200 space-y-1 text-xs">
-            <p className="font-bold text-surface-900">{deleteTarget?.title}</p>
-            <p className="text-surface-500">{deleteTarget?.originalFilename}</p>
-            <p className="text-[11px] text-surface-400 pt-1 font-mono">
+          <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1 text-xs">
+            <p className="font-bold text-white">{deleteTarget?.title}</p>
+            <p className="text-slate-400">{deleteTarget?.originalFilename}</p>
+            <p className="text-[11px] text-slate-500 pt-1 font-mono">
               Size: {formatFileSize(deleteTarget?.fileSizeBytes)}
             </p>
           </div>
@@ -733,7 +882,7 @@ export default function MaterialsPage() {
             Warning: This action cannot be undone. Any future AI notes or summaries generated from this document will also be removed.
           </p>
 
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-surface-200">
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
             <Button
               variant="outline"
               size="sm"

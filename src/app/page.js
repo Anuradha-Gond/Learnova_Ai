@@ -34,50 +34,51 @@ export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState(0);
 
+  const isLoading = status === "loading";
   const isAuthenticated = status === "authenticated";
 
   const coreFeatures = [
     {
-      title: "Smart Study Materials",
-      description: "Organize learning materials and prepare them for AI-assisted study.",
+      title: "Smart Learning Library",
+      description: "Organize PDFs and study materials in one private space, ready for intelligent indexing.",
       icon: BookOpen,
-      badge: "Milestone 4",
+      badge: "Study Library",
       highlight: "Document Upload & Processing",
     },
     {
       title: "AI Concept Simplification",
-      description: "Understand difficult topics through clear, student-friendly explanations.",
+      description: "Understand complex topics through intuitive analogies and student-friendly explanations.",
       icon: Brain,
-      badge: "Milestone 4",
-      highlight: "Adaptive Complexity",
+      badge: "Deep Understanding",
+      highlight: "Adaptive Explanations",
     },
     {
-      title: "Document-Grounded AI Assistant",
-      description: "Ask questions about study materials and receive relevant answers with supporting sources when available.",
+      title: "Grounded AI Study Partner",
+      description: "Ask questions and get answers strictly verified against your uploaded materials with citations.",
       icon: Sparkles,
-      badge: "Milestone 6",
-      highlight: "Grounded RAG Q&A",
+      badge: "Verified Answers",
+      highlight: "Document-Grounded Q&A",
     },
     {
-      title: "Personalized Quizzes",
-      description: "Practice with questions generated from learning materials.",
+      title: "Personalized Practice Quizzes",
+      description: "Reinforce comprehension with practice questions generated directly from your content.",
       icon: HelpCircle,
-      badge: "Milestone 5",
-      highlight: "Active Recall",
+      badge: "Practice Quizzes",
+      highlight: "Immediate Scoring & Review",
     },
     {
-      title: "Learning Analytics",
-      description: "Track quiz performance and identify topics that need more attention.",
+      title: "Learning Insights & Mastery",
+      description: "Track quiz performance over time and automatically detect weak areas before exam day.",
       icon: BarChart3,
-      badge: "Milestone 5",
+      badge: "Performance Tracking",
       highlight: "Topic Diagnostics",
     },
     {
-      title: "Smart Revision",
-      description: "Receive revision suggestions based on learning activity and topic mastery.",
+      title: "Targeted Revision Plan",
+      description: "Receive prioritized study recommendations tailored to your weakest concepts and learning habits.",
       icon: Flame,
-      badge: "Milestone 6",
-      highlight: "Targeted Mastery",
+      badge: "Smart Revision",
+      highlight: "Targeted Improvement",
     },
   ];
 
@@ -173,9 +174,9 @@ export default function LandingPage() {
         "Every quiz submission updates your topic mastery using an exponential moving average (EMA) algorithm, highlighting strong topics and surfacing weak areas that need revision.",
     },
     {
-      question: "Are all features available yet?",
+      question: "Are all features available to use?",
       answer:
-        "Learnova AI is being developed systematically in milestone releases. The Core Backend Foundation and Authentication UI are live today. Document upload and chunking (Milestone 4), quizzes and analytics (Milestone 5), and grounded RAG Q&A (Milestone 6) are releasing sequentially on the product roadmap.",
+        "Yes! All core learning features are fully functional and available immediately. You can upload study documents, generate comprehensive AI summaries, simplify difficult concepts, chat with your grounded AI assistant, create practice quizzes, and monitor your topic mastery across study sessions.",
     },
   ];
 
@@ -220,7 +221,9 @@ export default function LandingPage() {
 
           {/* Session-Aware CTA Buttons */}
           <div className="hidden sm:flex items-center gap-3">
-            {isAuthenticated ? (
+            {isLoading ? (
+              <div className="h-8 w-28 rounded-lg bg-slate-800 animate-pulse" />
+            ) : isAuthenticated ? (
               <Link href="/dashboard">
                 <Button variant="primary" size="sm" className="gap-2">
                   <span>Go to Dashboard</span>
@@ -294,7 +297,9 @@ export default function LandingPage() {
             </Link>
 
             <div className="pt-2 border-t border-slate-800 flex flex-col gap-2">
-              {isAuthenticated ? (
+              {isLoading ? (
+                <div className="h-10 w-full rounded-lg bg-slate-800 animate-pulse" />
+              ) : isAuthenticated ? (
                 <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}>
                   <Button variant="primary" size="md" className="w-full">
                     Go to Dashboard
@@ -346,9 +351,9 @@ export default function LandingPage() {
 
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
-            <Link href={isAuthenticated ? "/dashboard" : "/register"} className="w-full sm:w-auto">
+            <Link href={isLoading ? "#" : isAuthenticated ? "/dashboard" : "/register"} className="w-full sm:w-auto">
               <Button size="lg" className="w-full sm:w-auto gap-2 text-base px-7 py-3 bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-500/25">
-                <span>{isAuthenticated ? "Go to Dashboard" : "Start Learning"}</span>
+                <span>{isLoading ? "Loading..." : isAuthenticated ? "Go to Dashboard" : "Start Learning"}</span>
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </Link>
@@ -408,7 +413,7 @@ export default function LandingPage() {
                 <div className="rounded-xl bg-slate-950/70 border border-slate-800 p-4 space-y-3">
                   <div className="flex items-center gap-2 text-indigo-400 text-xs font-semibold">
                     <HelpCircle className="w-4 h-4" />
-                    <span>Active Recall Quiz</span>
+                    <span>Practice Quiz</span>
                   </div>
                   <h4 className="text-sm font-bold text-white">Net ATP from Glycolysis?</h4>
                   <div className="space-y-1.5 text-xs">
@@ -601,9 +606,9 @@ export default function LandingPage() {
             Create your free student account today and experience AI-guided study that adapts to your weaknesses.
           </p>
           <div className="flex justify-center pt-2">
-            <Link href={isAuthenticated ? "/dashboard" : "/register"}>
+            <Link href={isLoading ? "#" : isAuthenticated ? "/dashboard" : "/register"}>
               <Button size="lg" className="gap-2 bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-500/20">
-                <span>{isAuthenticated ? "Go to Dashboard" : "Start Learning for Free"}</span>
+                <span>{isLoading ? "Loading..." : isAuthenticated ? "Go to Dashboard" : "Start Learning for Free"}</span>
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </Link>

@@ -45,7 +45,7 @@ export default function MaterialsLayout({ children }) {
                 Workspace
               </Link>
               <span className="text-slate-600">/</span>
-              <span className="font-semibold text-white">Study Materials</span>
+              <span className="font-semibold text-white">Learning Library</span>
             </div>
           </div>
 

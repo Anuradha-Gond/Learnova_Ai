@@ -14,12 +14,15 @@ import {
   FileText,
   Trash2,
   Check,
+  Copy,
   Cpu,
   CornerDownLeft,
+  ExternalLink,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Dialog from "@/components/ui/Dialog";
+import MarkdownRenderer from "@/components/ui/MarkdownRenderer";
 import { cn } from "@/lib/utils";
 
 const STARTER_PROMPTS = [
@@ -28,6 +31,158 @@ const STARTER_PROMPTS = [
   "Explain the most important definitions and terms introduced here.",
   "What are the core conclusions or practical takeaways?",
 ];
+
+function MessageBubble({ msg, isSourcesOpen, onToggleSources, onRegenerate, isLast, isLoading }) {
+  const isUser = msg.role === "user";
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    if (!msg.content) return;
+    navigator.clipboard.writeText(msg.content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div
+      className={cn(
+        "flex gap-3 group animate-fade-in",
+        isUser ? "flex-row-reverse" : "flex-row"
+      )}
+    >
+      {/* Avatar */}
+      <div
+        className={cn(
+          "w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 shadow-sm transition-transform group-hover:scale-105",
+          isUser
+            ? "bg-slate-800 border border-slate-700/80 text-brand-300"
+            : "bg-gradient-to-tr from-violet-600 via-brand-600 to-teal-500 text-white shadow"
+        )}
+      >
+        {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+      </div>
+
+      <div
+        className={cn(
+          "flex flex-col space-y-1.5",
+          isUser ? "items-end max-w-[85%] sm:max-w-[78%]" : "items-start max-w-[95%] sm:max-w-[88%]"
+        )}
+      >
+        <div
+          className={cn(
+            "rounded-2xl px-4 py-3 text-xs sm:text-sm leading-relaxed transition-all shadow-sm",
+            isUser
+              ? "bg-brand-600/25 border border-brand-500/40 text-slate-100 rounded-tr-sm whitespace-pre-wrap selection:bg-brand-500/40"
+              : "bg-slate-900/90 border border-slate-800 text-slate-200 rounded-tl-sm w-full"
+          )}
+        >
+          {isUser ? (
+            <p className="font-sans leading-relaxed">{msg.content}</p>
+          ) : (
+            <MarkdownRenderer content={msg.content} />
+          )}
+        </div>
+
+        {/* Assistant Footer Actions: Copy + Citations Accordion */}
+        {!isUser && (
+          <div className="w-full space-y-2 pt-0.5">
+            <div className="flex items-center justify-between text-[11px] text-slate-400">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-slate-800/80 hover:text-slate-200 transition-colors"
+                  title="Copy response"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-3 h-3 text-emerald-400" />
+                      <span className="text-emerald-400 font-medium">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3 h-3" />
+                      <span>Copy</span>
+                    </>
+                  )}
+                </button>
+
+                {isLast && onRegenerate && (
+                  <button
+                    type="button"
+                    onClick={onRegenerate}
+                    disabled={isLoading}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-slate-800/80 hover:text-slate-200 transition-colors disabled:opacity-50"
+                    title="Regenerate answer"
+                  >
+                    <RotateCcw className={cn("w-3 h-3", isLoading && "animate-spin")} />
+                    <span>Regenerate</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Source count pill */}
+              {Array.isArray(msg.sources) && msg.sources.length > 0 && (
+                <button
+                  type="button"
+                  onClick={onToggleSources}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg border text-[11px] font-medium transition-colors",
+                    isSourcesOpen
+                      ? "bg-teal-950/80 border-teal-600/50 text-teal-300"
+                      : "bg-slate-950/70 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+                  )}
+                >
+                  <FileText className="w-3 h-3 text-teal-400" />
+                  <span>{msg.sources.length} Verified {msg.sources.length === 1 ? "Source" : "Sources"}</span>
+                  {isSourcesOpen ? (
+                    <ChevronUp className="w-3 h-3 text-teal-400" />
+                  ) : (
+                    <ChevronDown className="w-3 h-3" />
+                  )}
+                </button>
+              )}
+            </div>
+
+            {/* Citations Box */}
+            {!isUser && isSourcesOpen && Array.isArray(msg.sources) && msg.sources.length > 0 && (
+              <div className="mt-2 space-y-2 p-3.5 rounded-xl bg-slate-950/90 border border-slate-800/80 text-xs animate-fade-in shadow-inner">
+                <div className="flex items-center justify-between pb-1 border-b border-slate-800/60">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <FileText className="w-3 h-3 text-teal-400" />
+                    <span>Retrieved Document Passages</span>
+                  </span>
+                  <Badge variant="teal" size="sm" className="text-[9px]">Grounded Context</Badge>
+                </div>
+
+                {msg.sources.map((src, sIdx) => (
+                  <div
+                    key={sIdx}
+                    className="p-2.5 rounded-lg bg-slate-900/90 border border-slate-800/80 space-y-1.5 text-slate-300 text-[11px]"
+                  >
+                    <div className="flex items-center justify-between text-[10px] text-slate-400">
+                      <span className="font-semibold text-teal-400">
+                        [Excerpt {sIdx + 1}] • Chunk #{src.chunkIndex}
+                      </span>
+                      {src.page && (
+                        <span className="px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 font-mono">
+                          Page {src.page}
+                        </span>
+                      )}
+                    </div>
+                    <p className="italic text-slate-300 leading-relaxed border-l-2 border-teal-500/50 pl-2.5">
+                      &ldquo;{src.excerpt}&rdquo;
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function ChatAssistant({
   materialId,
@@ -49,9 +204,9 @@ export default function ChatAssistant({
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
 
-  const scrollToBottom = (behavior = "smooth") => {
+  const scrollToBottom = useCallback((behavior = "smooth") => {
     messagesEndRef.current?.scrollIntoView({ behavior });
-  };
+  }, []);
 
   // Load prior conversation history
   const loadHistory = useCallback(async () => {
@@ -84,7 +239,7 @@ export default function ChatAssistant({
 
   useEffect(() => {
     scrollToBottom(messages.length <= 2 ? "auto" : "smooth");
-  }, [messages, isLoading]);
+  }, [messages, isLoading, scrollToBottom]);
 
   const toggleSource = (msgId) => {
     setExpandedSources((prev) => ({
@@ -110,7 +265,6 @@ export default function ChatAssistant({
     setInput("");
     setIsLoading(true);
 
-    // Reset textarea height
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
@@ -152,6 +306,58 @@ export default function ChatAssistant({
     }
   };
 
+  const handleRegenerate = async () => {
+    if (messages.length === 0 || isLoading) return;
+    // Find last user question
+    let lastUserQuestion = null;
+    let priorMessages = [];
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === "user") {
+        lastUserQuestion = messages[i].content;
+        priorMessages = messages.slice(0, i);
+        break;
+      }
+    }
+
+    if (!lastUserQuestion) return;
+
+    setMessages([...priorMessages, { id: `user_${Date.now()}`, role: "user", content: lastUserQuestion, createdAt: new Date().toISOString() }]);
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch(`/api/materials/${materialId}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: lastUserQuestion,
+          conversationId: conversationId || undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to regenerate answer.");
+      }
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `asst_${Date.now()}`,
+          role: "assistant",
+          content: data.answer,
+          sources: data.sources || [],
+          conversationId: data.conversationId,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+    } catch (err) {
+      setError(err.message || "An error occurred while regenerating.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -188,7 +394,7 @@ export default function ChatAssistant({
   // State: Document not processed yet
   if (processingStatus !== "ready") {
     return (
-      <div className="rounded-2xl bg-slate-900/70 border border-slate-800 p-6 flex flex-col items-center text-center space-y-4">
+      <div className="rounded-2xl bg-slate-900/70 border border-slate-800 p-8 flex flex-col items-center text-center space-y-4">
         <div className="w-12 h-12 rounded-xl bg-violet-950/70 border border-violet-800/40 text-violet-400 flex items-center justify-center">
           <Bot className="w-6 h-6" />
         </div>
@@ -217,7 +423,7 @@ export default function ChatAssistant({
   }
 
   return (
-    <div className="flex flex-col h-[650px] rounded-2xl bg-slate-900/90 border border-slate-800 overflow-hidden shadow-xl">
+    <div className="flex flex-col h-[680px] rounded-2xl bg-slate-900/90 border border-slate-800 overflow-hidden shadow-xl">
       {/* ── Chat Header ────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-5 py-3.5 bg-slate-950/80 border-b border-slate-800/90 shrink-0">
         <div className="flex items-center gap-3">
@@ -226,13 +432,13 @@ export default function ChatAssistant({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-bold text-white">Learnova AI Assistant</h3>
+              <h3 className="text-sm font-bold text-white">Document Study Assistant</h3>
               <Badge variant="teal" size="sm" className="text-[10px]">
-                Grounded RAG
+                Grounded Citations
               </Badge>
             </div>
-            <p className="text-[11px] text-slate-400 truncate max-w-xs">
-              Context: {materialTitle || "Active Document"} ({chunkCount} chunks indexed)
+            <p className="text-[11px] text-slate-400 truncate max-w-xs sm:max-w-md">
+              Context: {materialTitle || "Active Document"} ({chunkCount} knowledge chunks indexed)
             </p>
           </div>
         </div>
@@ -240,6 +446,7 @@ export default function ChatAssistant({
         <div className="flex items-center gap-2">
           {messages.length > 0 && (
             <button
+              type="button"
               onClick={() => setIsClearModalOpen(true)}
               className="text-xs text-slate-400 hover:text-rose-400 flex items-center gap-1.5 px-2.5 py-1 rounded-lg hover:bg-slate-800/60 transition-colors"
               title="Clear chat history"
@@ -260,8 +467,8 @@ export default function ChatAssistant({
           </div>
         ) : messages.length === 0 ? (
           /* Empty state with suggested starter prompts */
-          <div className="flex flex-col items-center justify-center h-full text-center max-w-md mx-auto space-y-5 py-8">
-            <div className="w-12 h-12 rounded-2xl bg-brand-950/60 border border-brand-800/40 text-brand-400 flex items-center justify-center">
+          <div className="flex flex-col items-center justify-center h-full text-center max-w-md mx-auto space-y-5 py-8 animate-fade-in">
+            <div className="w-12 h-12 rounded-2xl bg-brand-950/60 border border-brand-800/40 text-brand-400 flex items-center justify-center shadow-sm">
               <BookOpen className="w-6 h-6" />
             </div>
             <div className="space-y-1">
@@ -278,6 +485,7 @@ export default function ChatAssistant({
               {STARTER_PROMPTS.map((promptText, idx) => (
                 <button
                   key={idx}
+                  type="button"
                   onClick={() => handleSend(promptText)}
                   className="w-full p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 hover:border-brand-500/40 hover:bg-slate-800/50 text-xs text-slate-300 hover:text-white transition-all text-left flex items-center justify-between group"
                 >
@@ -289,123 +497,52 @@ export default function ChatAssistant({
           </div>
         ) : (
           messages.map((msg, index) => {
-            const isUser = msg.role === "user";
             const msgId = msg.id || `msg_${index}`;
             const isSourcesOpen = expandedSources[msgId];
+            const isLast = index === messages.length - 1;
 
             return (
-              <div
+              <MessageBubble
                 key={msgId}
-                className={cn(
-                  "flex gap-3",
-                  isUser ? "justify-end" : "justify-start"
-                )}
-              >
-                {!isUser && (
-                  <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-violet-600 to-brand-500 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
-                    <Bot className="w-4 h-4" />
-                  </div>
-                )}
-
-                <div
-                  className={cn(
-                    "flex flex-col max-w-[85%] sm:max-w-[78%] space-y-2",
-                    isUser ? "items-end" : "items-start"
-                  )}
-                >
-                  <div
-                    className={cn(
-                      "rounded-2xl px-4 py-3 text-xs leading-relaxed break-words whitespace-pre-wrap",
-                      isUser
-                        ? "bg-brand-600 text-white shadow-sm"
-                        : "bg-slate-950/80 text-slate-200 border border-slate-800/90"
-                    )}
-                  >
-                    {msg.content}
-                  </div>
-
-                  {/* Assistant Source Citations Accordion */}
-                  {!isUser && Array.isArray(msg.sources) && msg.sources.length > 0 && (
-                    <div className="w-full mt-1">
-                      <button
-                        onClick={() => toggleSource(msgId)}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 text-[11px] font-medium text-slate-300 hover:text-white transition-colors"
-                      >
-                        <FileText className="w-3 h-3 text-teal-400" />
-                        <span>{msg.sources.length} Verified Sources</span>
-                        {isSourcesOpen ? (
-                          <ChevronUp className="w-3 h-3 text-slate-400" />
-                        ) : (
-                          <ChevronDown className="w-3 h-3 text-slate-400" />
-                        )}
-                      </button>
-
-                      {isSourcesOpen && (
-                        <div className="mt-2 space-y-2 p-3 rounded-xl bg-slate-950/90 border border-slate-800/80 text-xs">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                            Retrieved Document Passages
-                          </p>
-                          {msg.sources.map((src, sIdx) => (
-                            <div
-                              key={sIdx}
-                              className="p-2.5 rounded-lg bg-slate-900/90 border border-slate-800 space-y-1 text-slate-300 text-[11px]"
-                            >
-                              <div className="flex items-center justify-between text-[10px] text-slate-400">
-                                <span className="font-semibold text-teal-400">
-                                  [Excerpt {sIdx + 1}] • Chunk #{src.chunkIndex}
-                                </span>
-                                {src.page && (
-                                  <span className="text-slate-500">Page {src.page}</span>
-                                )}
-                              </div>
-                              <p className="italic text-slate-300 leading-normal border-l-2 border-teal-500/50 pl-2">
-                                &ldquo;{src.excerpt}&rdquo;
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {isUser && (
-                  <div className="w-7 h-7 rounded-lg bg-slate-800 text-slate-300 flex items-center justify-center shrink-0 mt-0.5">
-                    <User className="w-4 h-4" />
-                  </div>
-                )}
-              </div>
+                msg={msg}
+                isSourcesOpen={isSourcesOpen}
+                onToggleSources={() => toggleSource(msgId)}
+                onRegenerate={handleRegenerate}
+                isLast={isLast}
+                isLoading={isLoading}
+              />
             );
           })
         )}
 
         {/* Loading Indicator */}
         {isLoading && (
-          <div className="flex gap-3 justify-start items-center">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-violet-600 to-brand-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+          <div className="flex gap-3 justify-start items-center animate-fade-in">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-violet-600 to-brand-500 text-white flex items-center justify-center shrink-0 shadow-sm">
               <Bot className="w-4 h-4 animate-pulse" />
             </div>
-            <div className="px-4 py-2.5 rounded-2xl bg-slate-950/80 border border-slate-800/80 flex items-center gap-2">
+            <div className="px-4 py-2.5 rounded-2xl bg-slate-950/90 border border-slate-800/80 flex items-center gap-2.5 shadow-sm">
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-brand-400 animate-bounce [animation-delay:-0.3s]" />
                 <div className="w-2 h-2 rounded-full bg-teal-400 animate-bounce [animation-delay:-0.15s]" />
                 <div className="w-2 h-2 rounded-full bg-violet-400 animate-bounce" />
               </div>
-              <span className="text-xs text-slate-400">Retrieving chunks & generating answer...</span>
+              <span className="text-xs text-slate-400 font-medium">Searching semantic chunks & synthesizing answer...</span>
             </div>
           </div>
         )}
 
-        {/* Error Banner */}
+        {/* Error Banner with Retry */}
         {error && (
-          <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-500/50 text-rose-200 text-xs flex items-center justify-between gap-2">
+          <div className="p-3 rounded-xl bg-rose-950/70 border border-rose-500/50 text-rose-200 text-xs flex items-center justify-between gap-2 animate-fade-in">
             <div className="flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
               <span>{error}</span>
             </div>
             <button
-              onClick={() => handleSend(messages[messages.length - 1]?.content)}
-              className="px-2 py-1 rounded bg-rose-900/60 hover:bg-rose-800/60 text-white text-[10px] font-semibold flex items-center gap-1"
+              type="button"
+              onClick={() => handleRegenerate()}
+              className="px-2 py-1 rounded bg-rose-900/70 hover:bg-rose-800/70 text-white text-[11px] font-semibold flex items-center gap-1"
             >
               <RotateCcw className="w-3 h-3" />
               Retry
@@ -418,7 +555,7 @@ export default function ChatAssistant({
 
       {/* ── Input Bar ──────────────────────────────────────────────── */}
       <div className="p-3 sm:p-4 bg-slate-950/90 border-t border-slate-800/90 shrink-0 space-y-1.5">
-        <div className="flex items-end gap-2 rounded-xl bg-slate-900/90 border border-slate-800 p-2 focus-within:border-brand-500/60 transition-colors">
+        <div className="flex items-end gap-2 rounded-xl bg-slate-900/90 border border-slate-800 p-2 focus-within:border-brand-500/60 transition-colors shadow-inner">
           <textarea
             ref={textareaRef}
             rows={1}
@@ -427,7 +564,7 @@ export default function ChatAssistant({
             onKeyDown={handleKeyDown}
             placeholder="Ask a question about this study material..."
             disabled={isLoading}
-            className="flex-1 bg-transparent text-white placeholder-slate-500 text-xs resize-none focus:outline-none max-h-36 px-2 py-1 leading-relaxed"
+            className="flex-1 bg-transparent text-white placeholder-slate-500 text-xs sm:text-sm resize-none focus:outline-none max-h-36 px-2 py-1 leading-relaxed disabled:opacity-50"
           />
 
           <Button
@@ -436,7 +573,7 @@ export default function ChatAssistant({
             disabled={!input.trim() || isLoading}
             isLoading={isLoading}
             onClick={() => handleSend()}
-            className="bg-brand-600 hover:bg-brand-500 h-8 w-8 p-0 rounded-lg shrink-0"
+            className="bg-brand-600 hover:bg-brand-500 h-8 w-8 p-0 rounded-lg shrink-0 shadow-sm"
             title="Send question (Enter)"
           >
             <Send className="w-3.5 h-3.5" />
@@ -458,12 +595,13 @@ export default function ChatAssistant({
         maxWidth="max-w-md"
       >
         <div className="space-y-4 text-xs">
-          <p className="text-surface-600">
-            This will clear your conversation with the assistant for this document. Your document, text chunks, and vector embeddings will remain completely unaffected.
+          <p className="text-slate-400">
+            This will clear your conversation with the assistant for this document. Your document and indexed knowledge sections will remain completely unaffected.
           </p>
 
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-surface-200">
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
             <Button
+              type="button"
               variant="outline"
               size="sm"
               disabled={isClearing}
@@ -472,6 +610,7 @@ export default function ChatAssistant({
               Cancel
             </Button>
             <Button
+              type="button"
               variant="danger"
               size="sm"
               isLoading={isClearing}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import {
   BarChart3,
@@ -18,13 +18,14 @@ import {
   ChevronRight,
   XCircle,
   RefreshCw,
-  ExternalLink,
+  Search,
+  Filter,
+  TrendingUp,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import { SkeletonCard } from "@/components/ui/Skeleton";
 import ErrorState from "@/components/ui/ErrorState";
-import EmptyState from "@/components/ui/EmptyState";
 import { cn } from "@/lib/utils";
 
 export default function AnalyticsDashboardPage() {
@@ -39,6 +40,10 @@ export default function AnalyticsDashboardPage() {
   const [updatingId, setUpdatingId] = useState(null);
   const [quizHistory, setQuizHistory] = useState([]);
 
+  // Topic Breakdown filters
+  const [topicSearch, setTopicSearch] = useState("");
+  const [topicTierFilter, setTopicTierFilter] = useState("all"); // "all" | "mastered" | "developing" | "weak"
+
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     setError("");
@@ -48,7 +53,7 @@ export default function AnalyticsDashboardPage() {
         fetch("/api/analytics/overview"),
         fetch("/api/analytics/weak-topics?all=true"),
         fetch("/api/analytics/recommendations"),
-        fetch("/api/history?limit=10"),
+        fetch("/api/history?limit=20"),
       ]);
 
       if (!overviewRes.ok || !weakRes.ok || !recsRes.ok) {
@@ -117,7 +122,6 @@ export default function AnalyticsDashboardPage() {
         throw new Error(data.error || "Failed to update recommendation.");
       }
 
-      // Update local state smoothly
       setRecommendations((prev) =>
         prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r))
       );
@@ -127,6 +131,85 @@ export default function AnalyticsDashboardPage() {
       setUpdatingId(null);
     }
   };
+
+  // 4-Tier Mastery Distribution Calculations
+  const masteryDistribution = useMemo(() => {
+    const total = allMastery.length;
+    if (total === 0) {
+      return { critical: 0, weak: 0, developing: 0, mastered: 0, total: 0 };
+    }
+    let critical = 0;
+    let weak = 0;
+    let developing = 0;
+    let mastered = 0;
+
+    for (const t of allMastery) {
+      const score = t.masteryScore ?? 0;
+      if (score < 40) critical++;
+      else if (score < 70) weak++;
+      else if (score < 85) developing++;
+      else mastered++;
+    }
+
+    return {
+      critical,
+      weak,
+      developing,
+      mastered,
+      total,
+      criticalPct: Math.round((critical / total) * 100),
+      weakPct: Math.round((weak / total) * 100),
+      developingPct: Math.round((developing / total) * 100),
+      masteredPct: Math.round((mastered / total) * 100),
+    };
+  }, [allMastery]);
+
+  // SVG Score Trendline Points (Chronological: oldest first)
+  const scoreTrendPoints = useMemo(() => {
+    if (!quizHistory || quizHistory.length === 0) return [];
+    const sorted = [...quizHistory].sort(
+      (a, b) => new Date(a.submittedAt || 0) - new Date(b.submittedAt || 0)
+    );
+    return sorted.map((q, idx) => ({
+      index: idx,
+      score: q.scorePercentage ?? 0,
+      title: q.quizTitle || `Quiz ${idx + 1}`,
+      date: q.submittedAt
+        ? new Date(q.submittedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+        : `Attempt ${idx + 1}`,
+    }));
+  }, [quizHistory]);
+
+  // Filtered topics for Full Topic Mastery Breakdown
+  const filteredTopics = useMemo(() => {
+    return allMastery.filter((t) => {
+      const score = t.masteryScore ?? 0;
+      const matchesSearch = (t.topicTag || "")
+        .toLowerCase()
+        .includes(topicSearch.toLowerCase());
+
+      let matchesTier = true;
+      if (topicTierFilter === "mastered") matchesTier = score >= 85;
+      else if (topicTierFilter === "developing") matchesTier = score >= 70 && score < 85;
+      else if (topicTierFilter === "weak") matchesTier = score < 70;
+
+      return matchesSearch && matchesTier;
+    });
+  }, [allMastery, topicSearch, topicTierFilter]);
+
+  const filteredRecommendations = recommendations.filter((r) => {
+    if (statusFilter === "all") return true;
+    if (statusFilter === "pending") return r.status === "pending";
+    if (statusFilter === "completed") {
+      return r.status === "completed" || r.status === "reviewed";
+    }
+    if (statusFilter === "dismissed") return r.status === "dismissed";
+    return true;
+  });
+
+  const hasNoActivity =
+    (!overview || overview.totalMaterials === 0) &&
+    (!overview || overview.quizzesCompleted === 0);
 
   if (isLoading) {
     return (
@@ -157,20 +240,6 @@ export default function AnalyticsDashboardPage() {
     );
   }
 
-  const hasNoActivity =
-    (!overview || overview.totalMaterials === 0) &&
-    (!overview || overview.quizzesCompleted === 0);
-
-  const filteredRecommendations = recommendations.filter((r) => {
-    if (statusFilter === "all") return true;
-    if (statusFilter === "pending") return r.status === "pending";
-    if (statusFilter === "completed") {
-      return r.status === "completed" || r.status === "reviewed";
-    }
-    if (statusFilter === "dismissed") return r.status === "dismissed";
-    return true;
-  });
-
   return (
     <div className="space-y-10 animate-fade-in">
       {/* ── Page Header ────────────────────────────────────────────── */}
@@ -178,14 +247,11 @@ export default function AnalyticsDashboardPage() {
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Learning Analytics & Weak-Topic Diagnostics
+              Learning Insights & Diagnostics
             </h1>
-            <Badge variant="violet" size="sm">
-              Milestone 8
-            </Badge>
           </div>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Real-time diagnostic mastery metrics, weak-topic detection, and personalized revision recommendations.
+            Real-time mastery diagnostics, score progression trends, and personalized revision interventions.
           </p>
         </div>
 
@@ -204,10 +270,10 @@ export default function AnalyticsDashboardPage() {
             size="sm"
             onClick={handleGenerateRecommendations}
             disabled={isGenerating}
-            className="gap-1.5 bg-brand-600 hover:bg-brand-500 text-white"
+            className="gap-1.5 bg-brand-600 hover:bg-brand-500 text-white shadow-sm"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>{isGenerating ? "Analyzing..." : "Update Recommendations"}</span>
+            <span>{isGenerating ? "Analyzing..." : "Sync Recommendations"}</span>
           </Button>
         </div>
       </div>
@@ -330,22 +396,198 @@ export default function AnalyticsDashboardPage() {
         </div>
       </section>
 
-      {/* ── Empty State Guard: If no activity at all ─────────────────── */}
+      {/* ── B. Visual Analytics: Distribution Bar + Score Trendline ───── */}
+      {allMastery.length > 0 && (
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* 1. 4-Band Mastery Tier Distribution */}
+          <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-brand-400" />
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                  Mastery Tier Distribution
+                </h3>
+              </div>
+              <span className="text-[11px] text-slate-400 font-mono">
+                {masteryDistribution.total} Topics
+              </span>
+            </div>
+
+            {/* Segmented Stacked Progress Bar */}
+            <div className="w-full h-3 rounded-full bg-slate-950 overflow-hidden flex border border-slate-800">
+              {masteryDistribution.mastered > 0 && (
+                <div
+                  className="bg-emerald-500 h-full transition-all"
+                  style={{ width: `${masteryDistribution.masteredPct}%` }}
+                  title={`Mastered: ${masteryDistribution.mastered} topics (${masteryDistribution.masteredPct}%)`}
+                />
+              )}
+              {masteryDistribution.developing > 0 && (
+                <div
+                  className="bg-sky-500 h-full transition-all"
+                  style={{ width: `${masteryDistribution.developingPct}%` }}
+                  title={`Developing: ${masteryDistribution.developing} topics (${masteryDistribution.developingPct}%)`}
+                />
+              )}
+              {masteryDistribution.weak > 0 && (
+                <div
+                  className="bg-amber-500 h-full transition-all"
+                  style={{ width: `${masteryDistribution.weakPct}%` }}
+                  title={`Weak: ${masteryDistribution.weak} topics (${masteryDistribution.weakPct}%)`}
+                />
+              )}
+              {masteryDistribution.critical > 0 && (
+                <div
+                  className="bg-rose-500 h-full transition-all"
+                  style={{ width: `${masteryDistribution.criticalPct}%` }}
+                  title={`Critical: ${masteryDistribution.critical} topics (${masteryDistribution.criticalPct}%)`}
+                />
+              )}
+            </div>
+
+            {/* Legend Pills */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-0.5">
+                <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  <span>Mastered</span>
+                </div>
+                <p className="text-base font-bold text-emerald-400 font-mono">
+                  {masteryDistribution.mastered}{" "}
+                  <span className="text-[10px] text-slate-500">({masteryDistribution.masteredPct || 0}%)</span>
+                </p>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-0.5">
+                <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                  <span className="w-2 h-2 rounded-full bg-sky-400" />
+                  <span>Developing</span>
+                </div>
+                <p className="text-base font-bold text-sky-300 font-mono">
+                  {masteryDistribution.developing}{" "}
+                  <span className="text-[10px] text-slate-500">({masteryDistribution.developingPct || 0}%)</span>
+                </p>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-0.5">
+                <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                  <span className="w-2 h-2 rounded-full bg-amber-400" />
+                  <span>Weak</span>
+                </div>
+                <p className="text-base font-bold text-amber-400 font-mono">
+                  {masteryDistribution.weak}{" "}
+                  <span className="text-[10px] text-slate-500">({masteryDistribution.weakPct || 0}%)</span>
+                </p>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-0.5">
+                <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                  <span className="w-2 h-2 rounded-full bg-rose-400" />
+                  <span>Critical</span>
+                </div>
+                <p className="text-base font-bold text-rose-400 font-mono">
+                  {masteryDistribution.critical}{" "}
+                  <span className="text-[10px] text-slate-500">({masteryDistribution.criticalPct || 0}%)</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Historical Score Progression Trendline (SVG) */}
+          <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-teal-400" />
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                  Score Progression Trend
+                </h3>
+              </div>
+              <span className="text-[11px] text-slate-400 font-mono">
+                {scoreTrendPoints.length} Attempts
+              </span>
+            </div>
+
+            {scoreTrendPoints.length < 2 ? (
+              <div className="h-36 flex flex-col items-center justify-center text-center p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 text-xs text-slate-400">
+                <p>Complete at least 2 practice quizzes to generate a score progression trendline.</p>
+              </div>
+            ) : (
+              <div className="h-36 w-full pt-2">
+                <svg className="w-full h-full overflow-visible" viewBox="0 0 400 100" preserveAspectRatio="none">
+                  {/* Grid Lines */}
+                  <line x1="0" y1="20" x2="400" y2="20" stroke="#334155" strokeDasharray="3 3" opacity="0.4" />
+                  <line x1="0" y1="50" x2="400" y2="50" stroke="#334155" strokeDasharray="3 3" opacity="0.4" />
+                  <line x1="0" y1="80" x2="400" y2="80" stroke="#334155" strokeDasharray="3 3" opacity="0.4" />
+
+                  {/* Trendline Path */}
+                  {(() => {
+                    const stepX = 400 / (scoreTrendPoints.length - 1);
+                    const points = scoreTrendPoints
+                      .map((p, idx) => {
+                        const x = idx * stepX;
+                        // Score 0 -> y=90, Score 100 -> y=10
+                        const y = 90 - (p.score / 100) * 80;
+                        return `${x},${y}`;
+                      })
+                      .join(" ");
+
+                    return (
+                      <>
+                        <polyline
+                          fill="none"
+                          stroke="#14B8A6"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          points={points}
+                        />
+                        {/* Circles for data points */}
+                        {scoreTrendPoints.map((p, idx) => {
+                          const x = idx * stepX;
+                          const y = 90 - (p.score / 100) * 80;
+                          return (
+                            <circle
+                              key={idx}
+                              cx={x}
+                              cy={y}
+                              r="4"
+                              className="fill-teal-400 stroke-slate-950 stroke-2"
+                            >
+                              <title>{`${p.title}: ${p.score}% (${p.date})`}</title>
+                            </circle>
+                          );
+                        })}
+                      </>
+                    );
+                  })()}
+                </svg>
+
+                <div className="flex items-center justify-between text-[10px] text-slate-500 pt-2 font-mono">
+                  <span>Earliest Attempt</span>
+                  <span>Latest Attempt ({scoreTrendPoints[scoreTrendPoints.length - 1]?.score}%)</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ── Empty State Guard ────────────────────────────────────────── */}
       {hasNoActivity && (
         <div className="p-8 rounded-2xl bg-slate-900/40 border border-dashed border-slate-800 text-center space-y-4">
-          <div className="w-12 h-12 rounded-xl bg-brand-950 border border-brand-800/60 text-brand-400 flex items-center justify-center mx-auto">
+          <div className="w-12 h-12 rounded-xl bg-brand-950 border border-brand-800/60 text-brand-400 flex items-center justify-center mx-auto shadow-sm">
             <Sparkles className="w-6 h-6" />
           </div>
           <div className="max-w-md mx-auto space-y-1.5">
             <h3 className="text-base font-bold text-white">Start Your Learning Journey</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Upload study materials in PDF or TXT format and generate active-recall quizzes.
+              Upload study materials in PDF or TXT format and generate practice quizzes.
               Learnova AI will automatically track your topic mastery and generate targeted revision plans.
             </p>
           </div>
           <div className="flex justify-center gap-3 pt-2">
             <Link href="/materials">
-              <Button size="sm" className="bg-brand-600 hover:bg-brand-500 text-white gap-2">
+              <Button size="sm" className="bg-brand-600 hover:bg-brand-500 text-white gap-2 shadow-sm">
                 <BookOpen className="w-3.5 h-3.5" />
                 <span>Upload Study Material</span>
               </Button>
@@ -360,7 +602,7 @@ export default function AnalyticsDashboardPage() {
         </div>
       )}
 
-      {/* ── B. Weak Topics Spotlight ─────────────────────────────────── */}
+      {/* ── C. Weak Topics Spotlight ─────────────────────────────────── */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
@@ -396,7 +638,7 @@ export default function AnalyticsDashboardPage() {
                 <div
                   key={topic.id || topic.topicTag}
                   className={cn(
-                    "p-5 rounded-2xl border transition-all space-y-3",
+                    "p-5 rounded-2xl border transition-all space-y-3 shadow-md",
                     isCritical
                       ? "bg-rose-950/20 border-rose-900/50 hover:border-rose-700/60"
                       : "bg-amber-950/20 border-amber-900/50 hover:border-amber-700/60"
@@ -500,7 +742,7 @@ export default function AnalyticsDashboardPage() {
         )}
       </section>
 
-      {/* ── C. Revision Recommendations Feed ─────────────────────────── */}
+      {/* ── D. Revision Recommendations Feed ─────────────────────────── */}
       <section className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
@@ -522,7 +764,7 @@ export default function AnalyticsDashboardPage() {
                 key={tab}
                 onClick={() => setStatusFilter(tab)}
                 className={cn(
-                  "px-3 py-1 rounded-lg font-semibold capitalize transition-all",
+                  "px-3 py-1 rounded-lg font-semibold capitalize transition-all cursor-pointer",
                   statusFilter === tab
                     ? "bg-brand-600 text-white shadow-sm"
                     : "text-slate-400 hover:text-white hover:bg-slate-800"
@@ -556,7 +798,7 @@ export default function AnalyticsDashboardPage() {
                 <div
                   key={rec.id}
                   className={cn(
-                    "p-4 sm:p-5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4",
+                    "p-4 sm:p-5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm",
                     isDone
                       ? "bg-slate-900/30 border-slate-800/60 opacity-75"
                       : isDismissed
@@ -655,9 +897,9 @@ export default function AnalyticsDashboardPage() {
         )}
       </section>
 
-      {/* ── D. Topic Mastery Visualization ───────────────────────────── */}
+      {/* ── E. Full Topic Mastery Breakdown (with search & tier filters) ─ */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
               <Award className="w-4 h-4 text-emerald-400" />
@@ -666,13 +908,46 @@ export default function AnalyticsDashboardPage() {
               </h2>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Comprehensive view of all syllabus topics assessed across practice quizzes.
+              Comprehensive list of all syllabus topics assessed across practice quizzes.
             </p>
           </div>
 
-          <span className="text-xs text-slate-400 font-mono">
-            {allMastery.length} {allMastery.length === 1 ? "Topic" : "Topics"} Tracked
-          </span>
+          {/* Search & Tier Filters */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search topics..."
+                value={topicSearch}
+                onChange={(e) => setTopicSearch(e.target.value)}
+                className="bg-slate-950/80 border border-slate-800 text-xs text-white rounded-lg pl-8 pr-3 py-1.5 focus:outline-none focus:border-brand-500 w-36 sm:w-44"
+              />
+            </div>
+
+            <div className="flex items-center gap-1 bg-slate-950/60 p-1 rounded-lg border border-slate-800 text-xs">
+              {[
+                { id: "all", label: "All" },
+                { id: "mastered", label: "≥85%" },
+                { id: "developing", label: "70-84%" },
+                { id: "weak", label: "<70%" },
+              ].map((tier) => (
+                <button
+                  key={tier.id}
+                  type="button"
+                  onClick={() => setTopicTierFilter(tier.id)}
+                  className={cn(
+                    "px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer",
+                    topicTierFilter === tier.id
+                      ? "bg-brand-600 text-white font-semibold shadow-sm"
+                      : "text-slate-400 hover:text-white"
+                  )}
+                >
+                  {tier.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {allMastery.length === 0 ? (
@@ -683,10 +958,14 @@ export default function AnalyticsDashboardPage() {
               Take your first practice quiz to generate topic mastery data and diagnostic graphs.
             </p>
           </div>
+        ) : filteredTopics.length === 0 ? (
+          <div className="p-6 rounded-2xl bg-slate-900/40 border border-slate-800 text-center text-xs text-slate-400">
+            No topics match the search &ldquo;{topicSearch}&rdquo; in this tier.
+          </div>
         ) : (
           <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-5 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {allMastery.map((topic) => {
+              {filteredTopics.map((topic) => {
                 const score = topic.masteryScore ?? 0;
                 const classification = topic.classification;
 
@@ -750,10 +1029,10 @@ export default function AnalyticsDashboardPage() {
                       />
                     </div>
 
-                    <div className="flex items-center justify-between text-[10px] text-slate-500">
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono">
                       <span>{topic.attemptCount || 0} attempts logged</span>
                       {topic.lastAttemptScore !== null && (
-                        <span>Last quiz score: {topic.lastAttemptScore}%</span>
+                        <span>Last quiz: {topic.lastAttemptScore}%</span>
                       )}
                     </div>
                   </div>
@@ -764,18 +1043,18 @@ export default function AnalyticsDashboardPage() {
         )}
       </section>
 
-      {/* ── E. Recent Assessment Results & Quiz Performance Timeline ── */}
+      {/* ── F. Recent Assessment Results & Quiz Performance Timeline ── */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
               <HelpCircle className="w-4 h-4 text-teal-400" />
               <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-                Recent Assessment Results & Quiz Performance Timeline
+                Recent Assessment History
               </h2>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Historical performance across submitted active-recall quizzes.
+              Historical results across submitted active-recall quizzes.
             </p>
           </div>
 
