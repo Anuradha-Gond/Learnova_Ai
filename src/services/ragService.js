@@ -1,6 +1,6 @@
-import { connectDB } from "@/lib/db/index.js";
-import MaterialChunk from "@/models/MaterialChunk.js";
-import { getGenerativeModel, isAIConfigured, AI_MODELS, callGeminiWithRetry } from "@/lib/ai/index.js";
+import { connectDB } from "../lib/db/index.js";
+import MaterialChunk from "../models/MaterialChunk.js";
+import { getGenerativeModel, isAIConfigured, AI_MODELS, callGeminiWithRetry } from "../lib/ai/index.js";
 import { generateChunkEmbedding, EMBEDDING_CONFIG } from "./embeddingService.js";
 
 /**

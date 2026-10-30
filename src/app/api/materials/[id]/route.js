@@ -84,6 +84,8 @@ export async function GET(request, { params }) {
         wordCount: material.wordCount,
         topicTags: material.topicTags || [],
         summary: material.summary,
+        summaryGeneratedAt: material.summaryGeneratedAt || null,
+        summaryStatus: material.summaryStatus || (material.summary ? "ready" : "idle"),
         createdAt: material.createdAt,
         updatedAt: material.updatedAt,
       },

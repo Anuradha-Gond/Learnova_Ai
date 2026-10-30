@@ -65,24 +65,55 @@ export default function DocumentSummary({
   materialTitle,
   processingStatus,
   onTriggerProcess,
+  initialSummary = null,
+  initialGeneratedAt = null,
+  initialStatus = "idle",
+  onSummaryUpdated = null,
 }) {
-  const [summaryData, setSummaryData] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [summaryData, setSummaryData] = useState(() =>
+    initialSummary
+      ? {
+          summary: initialSummary,
+          summaryGeneratedAt: initialGeneratedAt,
+          summaryStatus: initialStatus || "ready",
+        }
+      : null
+  );
+  const [isLoading, setIsLoading] = useState(!initialSummary);
+  const [isGenerating, setIsGenerating] = useState(initialStatus === "generating");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
 
   // Depth View Preset: "standard" | "overview" | "exam"
   const [depthPreset, setDepthPreset] = useState("standard");
 
+  // Synchronize when initialSummary changes from parent
+  useEffect(() => {
+    if (initialSummary) {
+      setSummaryData((prev) => {
+        if (!prev || prev.summary !== initialSummary) {
+          return {
+            summary: initialSummary,
+            summaryGeneratedAt: initialGeneratedAt,
+            summaryStatus: initialStatus || "ready",
+          };
+        }
+        return prev;
+      });
+      setIsLoading(false);
+    }
+  }, [initialSummary, initialGeneratedAt, initialStatus]);
+
   // Load existing summary if available
-  const loadSummary = useCallback(async () => {
+  const loadSummary = useCallback(async (isBackground = false) => {
     if (!materialId || processingStatus !== "ready") {
       setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
+    if (!isBackground) {
+      setIsLoading(true);
+    }
     setError("");
 
     try {
@@ -91,6 +122,12 @@ export default function DocumentSummary({
         const data = await res.json();
         if (data.summary) {
           setSummaryData(data);
+          if (onSummaryUpdated && data.summary !== initialSummary) {
+            onSummaryUpdated(data.summary);
+          }
+        }
+        if (data.summaryStatus === "generating") {
+          setIsGenerating(true);
         }
       }
     } catch (err) {
@@ -98,11 +135,16 @@ export default function DocumentSummary({
     } finally {
       setIsLoading(false);
     }
-  }, [materialId, processingStatus]);
+  }, [materialId, processingStatus, initialSummary, onSummaryUpdated]);
 
   useEffect(() => {
-    loadSummary();
-  }, [loadSummary]);
+    // If we already have initialSummary from parent props, only sync in background without loading flicker
+    if (initialSummary) {
+      loadSummary(true);
+    } else {
+      loadSummary(false);
+    }
+  }, [loadSummary, initialSummary]);
 
   const handleGenerate = async (force = false) => {
     if (!materialId || processingStatus !== "ready") return;
@@ -123,8 +165,16 @@ export default function DocumentSummary({
       }
 
       setSummaryData(data);
+      if (onSummaryUpdated && data.summary) {
+        onSummaryUpdated(data.summary);
+      }
     } catch (err) {
-      setError(err.message || "An unexpected error occurred while generating the summary.");
+      // If regeneration failed but we had a summary, preserve it and notify user
+      if (force && summaryData?.summary) {
+        setError(`Regeneration failed: ${err.message}. Your previously generated summary has been preserved.`);
+      } else {
+        setError(err.message || "An unexpected error occurred while generating the summary.");
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -318,12 +368,22 @@ export default function DocumentSummary({
       )}
 
       {/* ── Content States ─────────────────────────────────────────── */}
-      {isLoading || isGenerating ? (
+      {isLoading ? (
+        <div className="space-y-4 py-8 animate-fade-in text-center">
+          <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center gap-3 max-w-md mx-auto">
+            <RefreshCw className="w-4 h-4 text-brand-400 animate-spin" />
+            <p className="text-xs text-slate-300 font-medium">
+              Loading existing study summary from library...
+            </p>
+          </div>
+          <SkeletonCard className="h-32" />
+        </div>
+      ) : isGenerating && !summaryData?.summary ? (
         <div className="space-y-4 py-4 animate-fade-in">
           <div className="p-4 rounded-xl bg-slate-950 border border-brand-800/40 flex items-center gap-3">
-            <RefreshCw className="w-4 h-4 text-brand-400 animate-spin" />
+            <Sparkles className="w-4 h-4 text-brand-400 animate-spin" />
             <p className="text-xs text-brand-200 font-medium">
-              Synthesizing document excerpts and generating structured study sections...
+              Synthesizing document excerpts and generating structured study sections with Gemini...
             </p>
           </div>
           <SkeletonCard className="h-36" />
@@ -331,13 +391,26 @@ export default function DocumentSummary({
         </div>
       ) : summaryData?.summary ? (
         <div className="space-y-4 animate-fade-in">
+          {isGenerating && (
+            <div className="p-3 rounded-xl bg-brand-950/70 border border-brand-800/50 flex items-center gap-2.5 text-xs text-brand-200 animate-pulse">
+              <RefreshCw className="w-3.5 h-3.5 text-brand-400 animate-spin" />
+              <span>Generating updated academic summary... Your current summary remains available below.</span>
+            </div>
+          )}
+
           <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-5 sm:p-6 shadow-inner select-text">
             <MarkdownRenderer content={displayedContent} />
           </div>
 
           <div className="flex items-center justify-between px-2 text-[11px] text-slate-500">
             <span>Grounded strictly in extracted document excerpts</span>
-            <span>Synthesized with Gemini</span>
+            <span>
+              {summaryData.summaryGeneratedAt ? (
+                `Generated ${new Date(summaryData.summaryGeneratedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+              ) : (
+                "Synthesized with Gemini"
+              )}
+            </span>
           </div>
         </div>
       ) : (

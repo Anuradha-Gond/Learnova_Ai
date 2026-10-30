@@ -35,8 +35,15 @@ if (!cached) {
  */
 export async function connectDB() {
   const cache = global._mongooseCache || cached;
-  // Return existing connection immediately
+
+  // Return existing cached connection immediately (preserves test mocks)
   if (cache?.conn) {
+    return cache.conn;
+  }
+
+  // If mongoose already has an active, ready connection, return immediately
+  if (mongoose.connection?.readyState === 1) {
+    cache.conn = mongoose;
     return cache.conn;
   }
 
@@ -48,8 +55,14 @@ export async function connectDB() {
     );
   }
 
-  // Reuse an in-flight connection promise
-  if (!cache.promise) {
+  // 2. If a connection is already in progress, await the existing promise
+  if (mongoose.connection?.readyState === 2 && cache.promise) {
+    cache.conn = await cache.promise;
+    return cache.conn;
+  }
+
+  // 3. Create a new connection promise if not connecting or if disconnected
+  if (!cache.promise || mongoose.connection?.readyState === 0 || mongoose.connection?.readyState === 3) {
     const opts = {
       bufferCommands: false,
       maxPoolSize: 10,
@@ -57,26 +70,30 @@ export async function connectDB() {
       socketTimeoutMS: 30000,
     };
 
+    cache.conn = null;
     cache.promise = mongoose
       .connect(uri, opts)
       .then((mongooseInstance) => {
+        cache.conn = mongooseInstance;
         return mongooseInstance;
       })
       .catch((err) => {
-        // Reset promise so the next call retries
-        cached.promise = null;
+        // Reset promise so the next call retries cleanly
+        cache.promise = null;
+        cache.conn = null;
         throw err;
       });
   }
 
   try {
-    cached.conn = await cached.promise;
+    cache.conn = await cache.promise;
   } catch (err) {
-    cached.promise = null;
+    cache.promise = null;
+    cache.conn = null;
     throw err;
   }
 
-  return cached.conn;
+  return cache.conn;
 }
 
 /**

@@ -86,9 +86,52 @@ const MaterialSchema = new Schema(
       default: [],
     },
 
-    // Brief AI-generated summary (populated in later milestone)
+    // Brief AI-generated summary
     summary: {
       type: String,
+      default: null,
+    },
+
+    // Summary metadata and generation lifecycle tracking
+    summaryGeneratedAt: {
+      type: Date,
+      default: null,
+    },
+
+    summaryStatus: {
+      type: String,
+      enum: ["idle", "generating", "ready", "failed"],
+      default: "idle",
+      index: true,
+    },
+
+    summaryGeneratingAt: {
+      type: Date,
+      default: null,
+    },
+
+    summaryVersion: {
+      type: Number,
+      default: 1,
+    },
+
+    documentVersion: {
+      type: Number,
+      default: 1,
+    },
+
+    summaryFingerprint: {
+      type: String,
+      default: null,
+    },
+
+    summaryLockId: {
+      type: String,
+      default: null,
+    },
+
+    summaryLockHeartbeatAt: {
+      type: Date,
       default: null,
     },
   },

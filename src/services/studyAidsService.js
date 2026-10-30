@@ -1,7 +1,8 @@
-import { connectDB } from "@/lib/db/index.js";
-import Material from "@/models/Material.js";
-import MaterialChunk from "@/models/MaterialChunk.js";
-import { getGenerativeModel, isAIConfigured, AI_MODELS, callGeminiWithRetry } from "@/lib/ai/index.js";
+import crypto from "crypto";
+import { connectDB } from "../lib/db/index.js";
+import Material from "../models/Material.js";
+import MaterialChunk from "../models/MaterialChunk.js";
+import { getGenerativeModel, isAIConfigured, AI_MODELS, callGeminiWithRetry } from "../lib/ai/index.js";
 import { retrieveRelevantChunks } from "./ragService.js";
 import { generateChunkEmbedding } from "./embeddingService.js";
 
@@ -14,15 +15,84 @@ import { generateChunkEmbedding } from "./embeddingService.js";
  */
 
 /**
+ * In-memory map to deduplicate concurrent summary generation requests within the same process.
+ * Maps materialId -> Promise<{ summary, summaryGeneratedAt, summaryStatus, cached, ... }>
+ */
+const activeSummaryGenerations = new Map();
+
+/** Lock timing constants */
+export const STALE_LOCK_TIMEOUT_MS = 60 * 1000; // 60 seconds of inactivity = stale/abandoned lock
+export const HEARTBEAT_INTERVAL_MS = 15 * 1000; // 15 seconds heartbeat interval for active workers
+
+/**
+ * Generates a deterministic content fingerprint for a study material document.
+ * Derived solely from content-bearing properties:
+ * - storageKey (cloud object location)
+ * - fileSizeBytes (file byte size)
+ * - chunkCount (number of extracted text chunks)
+ * - wordCount (extracted word count)
+ * - documentVersion (explicit document content version)
+ *
+ * Changes to unrelated metadata (title, topicTags, etc.) will NOT alter this fingerprint.
+ *
+ * @param {object} material - Mongoose Material document or plain object
+ * @returns {string} 16-character hexadecimal fingerprint
+ */
+export function computeDocumentFingerprint(material) {
+  if (!material) return "";
+  const contentTokens = [
+    material.storageKey || "",
+    material.fileSizeBytes || 0,
+    material.chunkCount || 0,
+    material.wordCount || 0,
+    material.documentVersion || 1,
+  ].join("::");
+
+  return crypto.createHash("sha256").update(contentTokens).digest("hex").slice(0, 16);
+}
+
+/**
+ * Validates whether an existing summary is current for the provided material document.
+ *
+ * @param {object} material - Mongoose Material document or plain object
+ * @returns {boolean}
+ */
+export function isSummaryCurrent(material) {
+  if (!material || !material.summary) return false;
+
+  const currentFingerprint = computeDocumentFingerprint(material);
+
+  // If a fingerprint is stored, it must match the current document fingerprint
+  if (material.summaryFingerprint && material.summaryFingerprint !== currentFingerprint) {
+    return false;
+  }
+
+  // Version check: summaryVersion must match documentVersion
+  const docVersion = material.documentVersion || 1;
+  const sumVersion = material.summaryVersion || 1;
+  if (sumVersion !== docVersion) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * Generates or retrieves a structured, document-grounded summary.
  *
  * @param {object} params
  * @param {string} params.materialId - MongoDB ObjectId of the material
  * @param {string} params.userId     - Authenticated student ID
  * @param {boolean} [params.forceRegenerate=false] - Force re-generation via Gemini
- * @returns {Promise<{ summary: string, keyPoints: string[], topicTags: string[], wordCount: number, generatedAt: Date }>}
+ * @param {number} [params.staleThresholdMs] - Optional override for stale lock timeout
+ * @returns {Promise<{ summary: string, summaryGeneratedAt?: Date, summaryStatus: string, keyPoints?: string[], topicTags: string[], wordCount: number, cached: boolean, inProgress?: boolean }>}
  */
-export async function generateDocumentSummary({ materialId, userId, forceRegenerate = false }) {
+export async function generateDocumentSummary({
+  materialId,
+  userId,
+  forceRegenerate = false,
+  staleThresholdMs = STALE_LOCK_TIMEOUT_MS,
+}) {
   await connectDB();
 
   const material = await Material.findOne({ _id: materialId, userId });
@@ -36,51 +106,140 @@ export async function generateDocumentSummary({ materialId, userId, forceRegener
     );
   }
 
-  // Return cached summary if available and not forced to regenerate
-  if (material.summary && !forceRegenerate) {
+  const currentFingerprint = computeDocumentFingerprint(material);
+  const currentDocVersion = material.documentVersion || 1;
+  const summaryIsCurrent = isSummaryCurrent(material);
+
+  // 1. Return cached summary if available, matching current document version/fingerprint, and not forced
+  if (summaryIsCurrent && !forceRegenerate) {
     return {
       summary: material.summary,
+      summaryGeneratedAt: material.summaryGeneratedAt || material.updatedAt,
+      summaryStatus: "ready",
+      summaryVersion: material.summaryVersion || currentDocVersion,
       topicTags: material.topicTags || [],
       wordCount: material.wordCount || 0,
       cached: true,
     };
   }
 
+  // 2. Single-process optimization: reuse existing in-flight promise if one is already running locally
+  if (activeSummaryGenerations.has(materialId)) {
+    console.info(`[studyAidsService] Joining active in-flight summary generation for material: ${materialId}`);
+    return await activeSummaryGenerations.get(materialId);
+  }
+
+  // 3. Distributed atomic lock acquisition via MongoDB findOneAndUpdate
+  const lockId = crypto.randomUUID();
+  const now = new Date();
+  const staleThreshold = new Date(Date.now() - staleThresholdMs);
+
+  const acquireFilter = {
+    _id: material._id,
+    userId,
+    processingStatus: "ready",
+    $or: [
+      // Condition A: Not currently generating (idle, ready, failed)
+      { summaryStatus: { $ne: "generating" } },
+      // Condition B: Marked generating, but lock is stale/abandoned (no heartbeat within threshold)
+      {
+        summaryStatus: "generating",
+        $or: [
+          { summaryLockHeartbeatAt: { $lt: staleThreshold } },
+          { summaryLockHeartbeatAt: null, summaryGeneratingAt: { $lt: staleThreshold } },
+        ],
+      },
+    ],
+  };
+
+  const acquireUpdate = {
+    $set: {
+      summaryStatus: "generating",
+      summaryLockId: lockId,
+      summaryGeneratingAt: now,
+      summaryLockHeartbeatAt: now,
+    },
+  };
+
+  const lockedMaterial = await Material.findOneAndUpdate(acquireFilter, acquireUpdate, {
+    new: true,
+    returnDocument: "after",
+  });
+
+  // If another server instance holds an active, non-stale lock:
+  if (!lockedMaterial) {
+    const current = await Material.findOne({ _id: materialId, userId });
+    return {
+      summary: current?.summary || null,
+      summaryGeneratedAt: current?.summaryGeneratedAt || null,
+      summaryStatus: "generating",
+      summaryVersion: current?.summaryVersion || currentDocVersion,
+      topicTags: current?.topicTags || [],
+      wordCount: current?.wordCount || 0,
+      cached: Boolean(current?.summary),
+      inProgress: true,
+    };
+  }
+
   if (!isAIConfigured()) {
+    // Release acquired lock before throwing
+    await Material.updateOne(
+      { _id: material._id, summaryLockId: lockId },
+      {
+        $set: {
+          summaryStatus: material.summary ? "ready" : "failed",
+          summaryGeneratingAt: null,
+          summaryLockId: null,
+          summaryLockHeartbeatAt: null,
+        },
+      }
+    ).catch(() => {});
     throw new Error("GEMINI_API_KEY is not configured on the server.");
   }
 
-  // Fetch document chunks in page/offset order
-  const chunks = await MaterialChunk.find({ materialId, userId })
-    .sort({ chunkIndex: 1 })
-    .lean();
+  // 4. Create generation promise and start heartbeat renewal
+  const generationPromise = (async () => {
+    let heartbeatTimer = null;
 
-  if (!chunks || chunks.length === 0) {
-    throw new Error("No text chunks found for this document. Please reprocess the document.");
-  }
+    // Start background heartbeat to prevent legitimate long-running tasks from becoming stale
+    heartbeatTimer = setInterval(async () => {
+      try {
+        await Material.updateOne(
+          { _id: material._id, summaryLockId: lockId },
+          { $set: { summaryLockHeartbeatAt: new Date() } }
+        );
+      } catch {
+        // Silently swallow transient background heartbeat ping errors
+      }
+    }, HEARTBEAT_INTERVAL_MS);
+    if (heartbeatTimer.unref) heartbeatTimer.unref();
 
-  // Sample representative chunks to stay comfortably within Gemini Flash context limits
-  let selectedChunks = chunks;
-  if (chunks.length > 20) {
-    const step = Math.ceil(chunks.length / 20);
-    selectedChunks = [];
-    for (let i = 0; i < chunks.length; i += step) {
-      selectedChunks.push(chunks[i]);
-    }
-  }
+    try {
+      // Fetch document chunks in page/offset order
+      const chunks = await MaterialChunk.find({ materialId, userId })
+        .sort({ chunkIndex: 1 })
+        .lean();
 
-  const documentContext = selectedChunks
-    .map((c, idx) => `[Section ${idx + 1} - Page ${c.pageNumber || 1}]:\n${c.chunkText}`)
-    .join("\n\n---\n\n");
+      if (!chunks || chunks.length === 0) {
+        throw new Error("No text chunks found for this document. Please reprocess the document.");
+      }
 
-  const prompt = `You are an expert academic tutor summarizing study material for a student.
-Below are extracted excerpts from the student's study document titled "${material.title}".
+      // Sample representative chunks to stay comfortably within context limits and minimize latency
+      let selectedChunks = chunks;
+      if (chunks.length > 15) {
+        const step = Math.ceil(chunks.length / 15);
+        selectedChunks = [];
+        for (let i = 0; i < chunks.length; i += step) {
+          selectedChunks.push(chunks[i]);
+        }
+      }
 
-DOCUMENT EXCERPTS:
-${documentContext}
+      const documentContext = selectedChunks
+        .map((c, idx) => `[Section ${idx + 1} - Page ${c.pageNumber || 1}]:\n${c.chunkText}`)
+        .join("\n\n---\n\n");
 
-TASK:
-Provide a clear, high-quality, comprehensive academic summary grounded STRICTLY in the text above.
+      const systemInstruction = `You are an expert academic tutor summarizing study material for a student.
+Provide a clear, high-quality, comprehensive academic summary grounded STRICTLY in the provided excerpts.
 
 Format your response in clean Markdown with the following sections:
 ### Overview
@@ -96,45 +255,115 @@ RULES:
 - Ground your summary entirely in the provided text. Never invent facts, formulas, or author claims not present in the excerpts.
 - Write in engaging, student-friendly, and academically rigorous prose.`;
 
-  const model = getGenerativeModel(AI_MODELS.FLASH, {
-    temperature: 0.2,
-  });
+      const prompt = `STUDY DOCUMENT: "${material.title}"
 
-  let summaryText = "";
-  try {
-    const result = await callGeminiWithRetry(() => model.generateContent(prompt), {
-      context: "studyAidsService.generateDocumentSummary",
-      maxRetries: 1,
-      baseDelayMs: 400,
-    });
-    summaryText = result?.response?.text() || "";
-  } catch (err) {
-    throw err;
-  }
+DOCUMENT EXCERPTS:
+${documentContext}
 
-  if (!summaryText || summaryText.trim().length === 0) {
-    throw new Error("Gemini generated an empty summary response. Please try again.");
-  }
+TASK:
+Synthesize the document excerpts above into the structured academic summary according to the required sections.`;
 
-  const trimmedSummary = summaryText.trim();
+      const model = getGenerativeModel(
+        AI_MODELS.FLASH,
+        {
+          temperature: 0.2,
+          maxOutputTokens: 2048,
+        },
+        systemInstruction
+      );
 
-  // Persist summary back to Material document
-  await Material.updateOne(
-    { _id: material._id },
-    {
-      $set: {
+      let summaryText = "";
+      const result = await callGeminiWithRetry(() => model.generateContent(prompt), {
+        context: "studyAidsService.generateDocumentSummary",
+        maxRetries: 2,
+        baseDelayMs: 500,
+      });
+      summaryText = result?.response?.text() || "";
+
+      if (!summaryText || summaryText.trim().length === 0) {
+        throw new Error("Gemini generated an empty summary response. Please try again.");
+      }
+
+      const trimmedSummary = summaryText.trim();
+      const finishTime = new Date();
+
+      // Persist summary ONLY if this worker still holds the lock
+      const updateResult = await Material.updateOne(
+        {
+          _id: material._id,
+          summaryLockId: lockId,
+        },
+        {
+          $set: {
+            summary: trimmedSummary,
+            summaryFingerprint: currentFingerprint,
+            summaryVersion: currentDocVersion,
+            summaryStatus: "ready",
+            summaryGeneratedAt: finishTime,
+            summaryGeneratingAt: null,
+            summaryLockId: null,
+            summaryLockHeartbeatAt: null,
+            updatedAt: finishTime,
+          },
+        }
+      );
+
+      // If lock was overtaken or expired, discard this write and safely return latest ground truth
+      if (updateResult.matchedCount === 0) {
+        console.warn(
+          `[studyAidsService] Lock expired or superseded for material: ${materialId} (lockId: ${lockId}). Summary write discarded.`
+        );
+        const latest = await Material.findOne({ _id: materialId, userId });
+        return {
+          summary: latest?.summary || trimmedSummary,
+          summaryGeneratedAt: latest?.summaryGeneratedAt || finishTime,
+          summaryStatus: latest?.summaryStatus || "ready",
+          summaryVersion: latest?.summaryVersion || currentDocVersion,
+          topicTags: latest?.topicTags || [],
+          wordCount: latest?.wordCount || 0,
+          cached: true,
+        };
+      }
+
+      return {
         summary: trimmedSummary,
-        updatedAt: new Date(),
-      },
-    }
-  );
+        summaryGeneratedAt: finishTime,
+        summaryStatus: "ready",
+        summaryVersion: currentDocVersion,
+        topicTags: material.topicTags || [],
+        wordCount: material.wordCount || 0,
+        cached: false,
+      };
+    } catch (err) {
+      // If regeneration failed but a valid previous summary existed for this version, keep "ready"
+      const rollbackStatus = material.summary && summaryIsCurrent ? "ready" : "failed";
+      await Material.updateOne(
+        {
+          _id: material._id,
+          summaryLockId: lockId, // Ensures an expired worker cannot overwrite a newer lock
+        },
+        {
+          $set: {
+            summaryStatus: rollbackStatus,
+            summaryGeneratingAt: null,
+            summaryLockId: null,
+            summaryLockHeartbeatAt: null,
+          },
+        }
+      ).catch((e) => console.error("[studyAidsService] Failed to reset summaryStatus:", e.message));
 
-  return {
-    summary: trimmedSummary,
-    topicTags: material.topicTags || [],
-    wordCount: material.wordCount || 0,
-    cached: false,
-  };
+      throw err;
+    } finally {
+      if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+      }
+      activeSummaryGenerations.delete(materialId);
+    }
+  })();
+
+  activeSummaryGenerations.set(materialId, generationPromise);
+  return await generationPromise;
 }
 
 /**
@@ -216,6 +445,7 @@ RULES:
 
   const model = getGenerativeModel(AI_MODELS.FLASH, {
     temperature: 0.3,
+    maxOutputTokens: 2048,
   });
 
   let explanationText = "";

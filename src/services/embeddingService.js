@@ -1,4 +1,4 @@
-import { getEmbeddingModel, isAIConfigured, AI_MODELS, AI_CONFIG, classifyGeminiError } from "@/lib/ai/index.js";
+import { getEmbeddingModel, isAIConfigured, AI_MODELS, AI_CONFIG, classifyGeminiError } from "../lib/ai/index.js";
 
 /**
  * Gemini Vector Embedding Service

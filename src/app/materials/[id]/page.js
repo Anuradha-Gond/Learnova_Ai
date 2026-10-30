@@ -361,6 +361,12 @@ export default function DocumentWorkspacePage() {
               materialTitle={documentData.title}
               processingStatus={documentData.processingStatus}
               onTriggerProcess={handleProcessDocument}
+              initialSummary={documentData.summary}
+              initialGeneratedAt={documentData.summaryGeneratedAt}
+              initialStatus={documentData.summaryStatus}
+              onSummaryUpdated={(newSummary) => {
+                setDocumentData((prev) => (prev ? { ...prev, summary: newSummary, summaryStatus: "ready" } : prev));
+              }}
             />
           ) : activeTab === "simplify" ? (
             <ConceptSimplifier

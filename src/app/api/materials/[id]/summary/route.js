@@ -2,7 +2,7 @@ import { connectDB } from "@/lib/db/index.js";
 import Material from "@/models/Material.js";
 import { requireAuth, AuthError } from "@/lib/auth/server.js";
 import { objectIdSchema } from "@/validations/common.js";
-import { generateDocumentSummary } from "@/services/studyAidsService.js";
+import { generateDocumentSummary, isSummaryCurrent } from "@/services/studyAidsService.js";
 
 /**
  * GET /api/materials/[id]/summary
@@ -28,16 +28,36 @@ export async function GET(request, { params }) {
 
     await connectDB();
 
-    const material = await Material.findOne({ _id: id, userId: user.id });
+    const material = await Material.findOne({ _id: id, userId: user.id })
+      .select(
+        "summary summaryGeneratedAt summaryStatus processingStatus topicTags wordCount storageKey fileSizeBytes chunkCount documentVersion summaryFingerprint summaryVersion"
+      )
+      .lean();
     if (!material) {
       return Response.json({ error: "Study material not found or access denied." }, { status: 404 });
     }
 
+    const isCurrent = isSummaryCurrent(material);
+    if (!isCurrent) {
+      return Response.json({
+        summary: null,
+        summaryGeneratedAt: null,
+        summaryStatus: material.summaryStatus === "generating" ? "generating" : "idle",
+        processingStatus: material.processingStatus,
+        topicTags: material.topicTags || [],
+        wordCount: material.wordCount || 0,
+        summaryVersion: material.documentVersion || 1,
+      });
+    }
+
     return Response.json({
       summary: material.summary || null,
+      summaryGeneratedAt: material.summaryGeneratedAt || null,
+      summaryStatus: material.summaryStatus || "ready",
       processingStatus: material.processingStatus,
       topicTags: material.topicTags || [],
       wordCount: material.wordCount || 0,
+      summaryVersion: material.summaryVersion,
     });
   } catch (err) {
     console.error(`[GET /api/materials/${resolvedParams?.id}/summary] Error:`, err.message);

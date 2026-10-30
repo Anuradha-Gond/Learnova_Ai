@@ -150,8 +150,15 @@ export async function processMaterialDocument({ materialId, userId }) {
           chunkCount: chunkDocuments.length,
           wordCount: totalWords,
           processingError: null,
+          summary: null,
+          summaryStatus: "idle",
+          summaryGeneratedAt: null,
+          summaryFingerprint: null,
+          summaryLockId: null,
+          summaryLockHeartbeatAt: null,
           updatedAt: new Date(),
         },
+        $inc: { documentVersion: 1 },
       }
     );
 

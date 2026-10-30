@@ -17,6 +17,10 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 export const AI_MODELS = {
   /** Flash model — fast, cost-efficient for summaries, Q&A, quiz generation */
   FLASH: "gemini-3.5-flash",
+  /** Gemini 3 Flash Preview model — active text-generation preview endpoint */
+  FLASH_PREVIEW: "gemini-3-flash-preview",
+  /** Gemini 3.8 Flash model — high efficiency, active endpoint */
+  FLASH_3_8: "gemini-3.8-flash",
   /** Pro model — higher quality for complex reasoning (use sparingly) */
   PRO: "gemini-1.5-pro",
   /** Text embedding model — produces 768-dim vectors for RAG */
