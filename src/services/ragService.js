@@ -284,7 +284,7 @@ export async function generateGroundedAnswer({
     throw new Error("GEMINI_API_KEY is not configured on the server.");
   }
 
-  // 1. Generate query embedding using the same model as chunk storage (text-embedding-004)
+  // 1. Generate query embedding using the same model as chunk storage (gemini-embedding-001)
   const queryEmbedding = await generateChunkEmbedding(question);
 
   // 2. Retrieve top semantically relevant chunks scoped to this document and owner

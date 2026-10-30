@@ -8,7 +8,7 @@ const { Schema, models, model } = mongoose;
  * Each chunk carries a 768-dimensional embedding vector used for
  * Atlas Vector Search (RAG retrieval).
  *
- * Embedding dimension: 768 (Google text-embedding-004)
+ * Embedding dimension: 768 (Google gemini-embedding-001)
  */
 
 const MaterialChunkSchema = new Schema(
@@ -75,7 +75,7 @@ const MaterialChunkSchema = new Schema(
     // Model used to generate vector embeddings (for versioning)
     embeddingModel: {
       type: String,
-      default: "text-embedding-004",
+      default: "gemini-embedding-001",
     },
   },
   {

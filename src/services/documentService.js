@@ -11,7 +11,8 @@ export const DocumentStatus = {
   FAILED: "failed",
 };
 
-export const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024; // 15 MB
+export const MAX_FILE_SIZE_BYTES = 20_000_000; // 20 MB (decimal)
+export const MAX_TOTAL_STORAGE_BYTES = 8_500_000_000; // 8.5 GB (decimal)
 export const ALLOWED_EXTENSIONS = ["pdf", "txt"];
 export const ALLOWED_MIME_TYPES = {
   pdf: ["application/pdf", "application/x-pdf"],
@@ -37,7 +38,7 @@ export function validateUploadFile(file) {
   }
 
   if (file.size > MAX_FILE_SIZE_BYTES) {
-    return { valid: false, error: "File exceeds 15 MB limit" };
+    return { valid: false, error: "File exceeds 20 MB limit" };
   }
 
   const filename = typeof file.name === "string" ? file.name : "";

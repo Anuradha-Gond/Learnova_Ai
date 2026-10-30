@@ -463,7 +463,7 @@ export async function updateRecommendationStatus(recommendationId, userId, newSt
   const rec = await RevisionRecommendation.findOneAndUpdate(
     { _id: recommendationId, userId },
     { status: newStatus },
-    { new: true, lean: true }
+    { returnDocument: "after", lean: true }
   );
 
   if (!rec) {

@@ -94,10 +94,10 @@ describe("Learnova AI — Milestone 9: End-to-End Workflow Integration & Securit
     });
     assert.strictEqual(invalidExt.valid, false);
 
-    // Oversized (>15 MB)
+    // Oversized (>20 MB)
     const oversized = validateUploadFile({
       name: "huge_book.pdf",
-      size: 16 * 1024 * 1024,
+      size: 20_000_000 + 1,
     });
     assert.strictEqual(oversized.valid, false);
   });

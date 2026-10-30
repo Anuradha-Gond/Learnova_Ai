@@ -1,4 +1,11 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  ListObjectsV2Command,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 /**
@@ -15,7 +22,8 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
  */
 
 export const STORAGE_CONFIG = {
-  maxFileSizeBytes: 15 * 1024 * 1024,   // 15 MB
+  maxFileSizeBytes: 20_000_000,   // 20 MB (decimal)
+  maxTotalStorageBytes: 8_500_000_000, // 8.5 GB (decimal)
   allowedExtensions: ["pdf", "txt"],
   uploadUrlExpiresSeconds: 600,           // 10 minutes
   viewUrlExpiresSeconds: 900,             // 15 minutes
@@ -319,6 +327,49 @@ export async function getFileBuffer(storageKey) {
   }
 
   return Buffer.concat(chunks);
+}
+
+/**
+ * Lists objects in the private R2 storage bucket.
+ * Used for storage reconciliation and orphan object detection.
+ * Safe to call when storage is not configured (returns empty list).
+ *
+ * @param {string} [prefix=""] - Optional key prefix filter
+ * @returns {Promise<Array<{ key: string, size: number, lastModified: Date }>>}
+ */
+export async function listR2Objects(prefix = "") {
+  if (!isStorageConfigured()) {
+    return [];
+  }
+
+  const client = getS3Client();
+  let isTruncated = true;
+  let continuationToken = undefined;
+  const objects = [];
+
+  while (isTruncated) {
+    const command = new ListObjectsV2Command({
+      Bucket: process.env.R2_BUCKET_NAME,
+      Prefix: prefix || undefined,
+      ContinuationToken: continuationToken,
+    });
+
+    const response = await client.send(command);
+    if (response.Contents) {
+      for (const item of response.Contents) {
+        objects.push({
+          key: item.Key,
+          size: item.Size || 0,
+          lastModified: item.LastModified,
+        });
+      }
+    }
+
+    isTruncated = Boolean(response.IsTruncated);
+    continuationToken = response.NextContinuationToken;
+  }
+
+  return objects;
 }
 
 

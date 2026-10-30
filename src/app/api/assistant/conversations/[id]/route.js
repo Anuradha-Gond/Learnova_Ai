@@ -103,7 +103,7 @@ export async function PATCH(request, { params }) {
     const updated = await Conversation.findOneAndUpdate(
       { _id: id, userId: user.id },
       { title: parsed.data.title },
-      { new: true }
+      { returnDocument: "after" }
     ).lean();
 
     if (!updated) {

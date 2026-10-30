@@ -17,18 +17,18 @@ describe("Learnova AI — Unit Test Suite", () => {
   });
 
   describe("Document Validation Service", () => {
-    test("accepts valid PDF file within 15 MB", () => {
+    test("accepts valid PDF file within 20 MB", () => {
       const mockFile = { name: "syllabus.pdf", size: 4 * 1024 * 1024 };
       const result = validateUploadFile(mockFile);
       assert.equal(result.valid, true);
       assert.equal(result.extension, "pdf");
     });
 
-    test("rejects file exceeding 15 MB", () => {
-      const largeFile = { name: "large.pdf", size: 16 * 1024 * 1024 };
+    test("rejects file exceeding 20 MB", () => {
+      const largeFile = { name: "large.pdf", size: 20_000_000 + 1 };
       const result = validateUploadFile(largeFile);
       assert.equal(result.valid, false);
-      assert.ok(result.error.includes("15 MB"));
+      assert.ok(result.error.includes("20 MB"));
     });
 
     test("rejects unsupported file format", () => {

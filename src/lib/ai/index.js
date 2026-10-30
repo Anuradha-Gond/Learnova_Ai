@@ -20,7 +20,7 @@ export const AI_MODELS = {
   /** Pro model — higher quality for complex reasoning (use sparingly) */
   PRO: "gemini-1.5-pro",
   /** Text embedding model — produces 768-dim vectors for RAG */
-  EMBEDDINGS: "text-embedding-004",
+  EMBEDDINGS: "gemini-embedding-001",
 };
 
 /** Generation configuration defaults */

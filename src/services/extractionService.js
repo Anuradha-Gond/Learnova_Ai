@@ -1,12 +1,8 @@
-import { createRequire } from "node:module";
-
-const require = createRequire(import.meta.url);
-const { PDFParse } = require("pdf-parse");
-
 /**
  * Text Extraction Service
  *
  * Server-side text extraction and normalization for PDF and TXT study materials.
+ * Uses pdfjs-dist directly for PDF extraction (no native canvas dependencies).
  */
 
 /**
@@ -95,7 +91,6 @@ export async function extractTxtText(buffer) {
     };
   }
 }
-
 /**
  * Extracts text and page structure from a PDF buffer.
  * Captures page boundaries and validates that extractable text is present.
@@ -106,42 +101,57 @@ export async function extractTxtText(buffer) {
  */
 export async function extractPdfText(buffer) {
   if (!buffer || buffer.length === 0) {
-    return {
-      success: false,
-      text: "",
-      pages: [],
-      pageCount: 0,
-      error: "PDF buffer is empty.",
-    };
+    return { success: false, text: "", pages: [], pageCount: 0, error: "PDF buffer is empty." };
   }
 
-  let parser = null;
+  let pdfDoc = null;
   try {
-    parser = new PDFParse({ data: buffer });
-    const result = await parser.getText();
+    const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const data = Buffer.isBuffer(buffer)
+      ? new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
+      : buffer instanceof Uint8Array
+        ? buffer
+        : new Uint8Array(buffer);
+    const loadingTask = getDocument({ data, disableAutoFetch: true });
+    pdfDoc = await loadingTask.promise;
+    const totalPages = pdfDoc._pdfInfo?.numPages || pdfDoc.numPages || 0;
+    const pages = [];
+    let combined = "";
 
-    const rawPages = result?.pages || [];
-    const totalPages = result?.total || rawPages.length || 0;
+    for (let i = 1; i <= totalPages; i++) {
+      const page = await pdfDoc.getPage(i);
+      const textContent = await page.getTextContent();
+      const items = textContent.items;
 
-    const parsedPages = [];
-    let combinedNormalized = "";
+      let reconstructed = "";
+      let lastX = null;
+      let lastY = null;
+      let lastWidth = 0;
+      for (const item of items) {
+        const [a, , , , e, f] = item.transform; // a: scaleX, e: x, f: y
+        const x = e;
+        const y = f;
+        const width = item.width !== undefined ? item.width : Math.abs(a);
+        if (lastY !== null && Math.abs(y - lastY) > 5) {
+          reconstructed += "\n";
+        } else if (lastX !== null) {
+          const gap = x - (lastX + lastWidth);
+          if (gap > 2) reconstructed += " ";
+        }
+        reconstructed += item.str;
+        lastX = x;
+        lastY = y;
+        lastWidth = width;
+      }
 
-    for (let i = 0; i < rawPages.length; i++) {
-      const p = rawPages[i];
-      const pageNum = p.num || i + 1;
-      const pageNormalized = normalizeText(p.text || "");
-
-      if (pageNormalized.length > 0) {
-        parsedPages.push({
-          pageNumber: pageNum,
-          text: pageNormalized,
-        });
-        combinedNormalized += (combinedNormalized ? "\n\n" : "") + pageNormalized;
+      const normalized = normalizeText(reconstructed);
+      if (normalized.length > 0) {
+        pages.push({ pageNumber: i, text: normalized });
+        combined += (combined ? "\n\n" : "") + normalized;
       }
     }
 
-    // Verify if any readable text was extracted
-    if (!combinedNormalized || combinedNormalized.trim().length === 0) {
+    if (!combined || combined.trim().length === 0) {
       return {
         success: false,
         text: "",
@@ -152,43 +162,22 @@ export async function extractPdfText(buffer) {
       };
     }
 
-    return {
-      success: true,
-      text: combinedNormalized,
-      pages: parsedPages,
-      pageCount: totalPages || parsedPages.length || 1,
-    };
+    return { success: true, text: combined, pages, pageCount: totalPages || pages.length || 1 };
   } catch (err) {
     const isEncrypted = err.name === "PasswordException" || err.message?.toLowerCase().includes("password");
     const isCorrupt = err.name === "InvalidPDFException" || err.name === "FormatError";
-
     let errorMessage = "Failed to parse PDF document.";
-    if (isEncrypted) {
-      errorMessage = "Password-protected or encrypted PDFs cannot be processed.";
-    } else if (isCorrupt) {
-      errorMessage = "Invalid or corrupted PDF file structure.";
-    } else {
-      errorMessage = `PDF extraction error: ${err.message}`;
-    }
-
-    return {
-      success: false,
-      text: "",
-      pages: [],
-      pageCount: 0,
-      error: errorMessage,
-    };
+    if (isEncrypted) errorMessage = "Password-protected or encrypted PDFs cannot be processed.";
+    else if (isCorrupt) errorMessage = "Invalid or corrupted PDF file structure.";
+    else errorMessage = `PDF extraction error: ${err.message}`;
+    return { success: false, text: "", pages: [], pageCount: 0, error: errorMessage };
   } finally {
-    if (parser && typeof parser.destroy === "function") {
-      try {
-        await parser.destroy();
-      } catch {
-        // Safe destroy cleanup
-      }
+    if (pdfDoc && typeof pdfDoc.destroy === "function") {
+      try { await pdfDoc.destroy(); } catch {}
     }
   }
 }
-
+  
 /**
  * Universal document extraction dispatcher.
  *

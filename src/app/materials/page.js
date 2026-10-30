@@ -32,6 +32,7 @@ import { formatFileSize, validateUploadFile } from "@/services/documentService";
 
 export default function MaterialsPage() {
   const [materials, setMaterials] = useState([]);
+  const [storage, setStorage] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -69,6 +70,9 @@ export default function MaterialsPage() {
         throw new Error(data.error || "Failed to load study materials.");
       }
       setMaterials(data.materials || []);
+      if (data.storage) {
+        setStorage(data.storage);
+      }
     } catch (err) {
       setError(err.message || "An error occurred while loading documents.");
     } finally {
@@ -280,6 +284,69 @@ export default function MaterialsPage() {
         </Button>
       </div>
 
+      {/* ── Storage Quota Card ────────────────────────────────────── */}
+      {storage && (
+        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <HardDrive className="w-4 h-4 text-brand-400" />
+              <span className="text-xs font-bold text-white uppercase tracking-wider">
+                Cloudflare R2 Storage Quota
+              </span>
+              {storage.isFull && (
+                <Badge variant="danger" size="sm">
+                  Quota Full
+                </Badge>
+              )}
+            </div>
+            <div className="text-xs text-slate-400">
+              <span className="font-semibold text-slate-200">
+                {formatFileSize(storage.usedBytes)}
+              </span>{" "}
+              used of{" "}
+              <span className="font-semibold text-slate-200">8.5 GB</span> (
+              {storage.usagePercentage}%) •{" "}
+              <span className="text-slate-300">
+                {formatFileSize(storage.remainingBytes)} remaining
+              </span>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+            <div
+              className={`h-full transition-all duration-300 ${
+                storage.isFull
+                  ? "bg-rose-500"
+                  : storage.usagePercentage > 85
+                  ? "bg-amber-500"
+                  : "bg-gradient-to-r from-brand-500 to-teal-400"
+              }`}
+              style={{
+                width: `${Math.min(
+                  100,
+                  Math.max(
+                    storage.usagePercentage,
+                    storage.usedBytes > 0 ? 0.5 : 0
+                  )
+                )}%`,
+              }}
+            />
+          </div>
+
+          <div className="flex items-center justify-between text-[11px] text-slate-500">
+            <span>Maximum file size: 20 MB (PDF or TXT)</span>
+            {storage.isFull ? (
+              <span className="text-rose-400 font-semibold flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" /> Quota full. Please delete older documents.
+              </span>
+            ) : (
+              <span className="text-emerald-400 font-medium">Quota Available</span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Success Notification Banner */}
       {successMessage && (
         <div className="p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/50 text-emerald-200 text-xs flex items-center justify-between animate-fade-in">
@@ -396,7 +463,7 @@ export default function MaterialsPage() {
         <EmptyState
           icon={FolderOpen}
           title="No study materials uploaded yet"
-          description="Upload your lecture notes, textbook chapters, or syllabi (PDF or TXT up to 15 MB) to start organizing your learning repository."
+          description="Upload your lecture notes, textbook chapters, or syllabi (PDF or TXT up to 20 MB) to start organizing your learning repository."
           action={
             <Button
               onClick={() => {
@@ -521,10 +588,20 @@ export default function MaterialsPage() {
           }
         }}
         title="Upload Study Material"
-        description="Select a PDF or TXT document (up to 15 MB) to store in your private workspace."
+        description="Select a PDF or TXT document (up to 20 MB) to store in your private workspace."
         maxWidth="max-w-lg"
       >
         <form onSubmit={handleUploadSubmit} className="space-y-4">
+          {storage?.isFull && (
+            <div className="p-3 rounded-xl bg-amber-950/70 border border-amber-500/50 text-amber-200 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>
+                Storage quota is full (8.5 GB limit reached). Please delete older
+                documents to free up space.
+              </span>
+            </div>
+          )}
+
           {uploadError && (
             <div className="p-3 rounded-xl bg-rose-950/70 border border-rose-500/50 text-rose-200 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
@@ -564,7 +641,7 @@ export default function MaterialsPage() {
               {selectedFile ? selectedFile.name : "Click to browse or drag & drop"}
             </p>
             <p className="text-xs text-surface-500 mt-1">
-              Supported formats: PDF or TXT • Maximum 15 MB
+              Supported formats: PDF or TXT • Maximum 20 MB
             </p>
 
             {selectedFile && (
@@ -613,7 +690,7 @@ export default function MaterialsPage() {
               type="submit"
               variant="primary"
               size="md"
-              disabled={!selectedFile || isUploading}
+              disabled={!selectedFile || isUploading || Boolean(storage?.isFull)}
               isLoading={isUploading}
               className="gap-2"
             >

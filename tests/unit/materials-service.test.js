@@ -31,14 +31,14 @@ describe("Learnova AI — Milestone 4: Materials Domain & Security Tests", () =>
       assert.equal(validateUploadFile({ name: "test.pdf", size: 0 }).valid, false);
     });
 
-    test("enforces maximum file size limit of 15 MB", () => {
-      assert.equal(MAX_FILE_SIZE_BYTES, 15 * 1024 * 1024);
-      const exactLimit = validateUploadFile({ name: "notes.pdf", size: 15 * 1024 * 1024 });
+    test("enforces maximum file size limit of 20 MB", () => {
+      assert.equal(MAX_FILE_SIZE_BYTES, 20_000_000);
+      const exactLimit = validateUploadFile({ name: "notes.pdf", size: 20_000_000 });
       assert.equal(exactLimit.valid, true);
 
-      const oversized = validateUploadFile({ name: "notes.pdf", size: 15 * 1024 * 1024 + 1 });
+      const oversized = validateUploadFile({ name: "notes.pdf", size: 20_000_000 + 1 });
       assert.equal(oversized.valid, false);
-      assert.ok(oversized.error.includes("15 MB"));
+      assert.ok(oversized.error.includes("20 MB"));
     });
 
     test("allows only PDF and TXT file extensions", () => {

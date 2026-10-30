@@ -675,7 +675,7 @@ export async function evaluateAndScoreSubmission({
           },
           $inc: { attemptCount: 1 },
         },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: "after" }
       );
     } catch (masteryErr) {
       console.warn(`[quizService] Failed to update TopicMastery for topic "${topic.topicTag}":`, masteryErr.message);

@@ -101,6 +101,7 @@ const MaterialSchema = new Schema(
 // Compound index for owner + status queries (dashboard listing)
 MaterialSchema.index({ userId: 1, createdAt: -1 });
 MaterialSchema.index({ userId: 1, processingStatus: 1 });
+MaterialSchema.index({ storageKey: 1 }, { unique: true });
 
 const Material = models.Material || model("Material", MaterialSchema);
 

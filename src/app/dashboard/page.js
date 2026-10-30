@@ -274,7 +274,7 @@ export default function DashboardPage() {
               </div>
               <div>
                 <p className="text-xs font-bold text-white group-hover:text-brand-300">Upload Material</p>
-                <p className="text-[10px] text-slate-500">PDF or TXT up to 15 MB</p>
+                <p className="text-[10px] text-slate-500">PDF or TXT up to 20 MB</p>
               </div>
             </div>
             <Badge variant="primary" size="sm">Live</Badge>

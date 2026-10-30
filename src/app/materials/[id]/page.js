@@ -34,6 +34,8 @@ import { SkeletonCard } from "@/components/ui/Skeleton";
 import { formatFileSize } from "@/services/documentService";
 import ChatAssistant from "@/components/materials/ChatAssistant";
 import QuizGeneratorDialog from "@/components/materials/QuizGeneratorDialog";
+import DocumentSummary from "@/components/materials/DocumentSummary";
+import ConceptSimplifier from "@/components/materials/ConceptSimplifier";
 import { cn } from "@/lib/utils";
 
 export default function DocumentWorkspacePage() {
@@ -47,16 +49,13 @@ export default function DocumentWorkspacePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Active workspace tab: "preview" | "chat" | "quizzes"
+  // Active workspace tab: "preview" | "summary" | "simplify" | "chat" | "quizzes"
   const [activeTab, setActiveTab] = useState("preview");
 
   // Quiz generator modal & quizzes for this document
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
   const [materialQuizzes, setMaterialQuizzes] = useState([]);
   const [isLoadingQuizzes, setIsLoadingQuizzes] = useState(false);
-
-  // Future feature modal
-  const [modalInfo, setModalInfo] = useState({ isOpen: false, title: "", description: "", milestone: "" });
 
   // Processing state
   const [isProcessing, setIsProcessing] = useState(false);
@@ -167,15 +166,6 @@ export default function DocumentWorkspacePage() {
     }
   };
 
-  const openMilestoneModal = (title, description, milestone) => {
-    setModalInfo({
-      isOpen: true,
-      title,
-      description,
-      milestone,
-    });
-  };
-
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -283,6 +273,34 @@ export default function DocumentWorkspacePage() {
 
               <button
                 type="button"
+                onClick={() => setActiveTab("summary")}
+                className={cn(
+                  "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                  activeTab === "summary"
+                    ? "bg-brand-600 text-white shadow-sm"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
+                )}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-brand-300" />
+                <span>AI Summary</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("simplify")}
+                className={cn(
+                  "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                  activeTab === "simplify"
+                    ? "bg-teal-600 text-white shadow-sm"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
+                )}
+              >
+                <Brain className="w-3.5 h-3.5 text-teal-300" />
+                <span>Simplify Concept</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setActiveTab("chat")}
                 className={cn(
                   "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
@@ -292,7 +310,7 @@ export default function DocumentWorkspacePage() {
                 )}
               >
                 <Sparkles className="w-3.5 h-3.5 text-teal-300" />
-                <span>AI Study Assistant</span>
+                <span>AI Assistant</span>
                 {documentData.processingStatus === "ready" && (
                   <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
                 )}
@@ -329,7 +347,21 @@ export default function DocumentWorkspacePage() {
             )}
           </div>
 
-          {activeTab === "chat" ? (
+          {activeTab === "summary" ? (
+            <DocumentSummary
+              materialId={materialId}
+              materialTitle={documentData.title}
+              processingStatus={documentData.processingStatus}
+              onTriggerProcess={handleProcessDocument}
+            />
+          ) : activeTab === "simplify" ? (
+            <ConceptSimplifier
+              materialId={materialId}
+              materialTitle={documentData.title}
+              processingStatus={documentData.processingStatus}
+              onTriggerProcess={handleProcessDocument}
+            />
+          ) : activeTab === "chat" ? (
             <ChatAssistant
               materialId={materialId}
               materialTitle={documentData.title}
@@ -726,29 +758,35 @@ export default function DocumentWorkspacePage() {
             </div>
           </div>
 
-          {/* Future AI Actions (B3) */}
+          {/* AI Study Aids Panel */}
           <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-white uppercase tracking-wider">
                 AI Study Aids
               </h2>
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Roadmap</span>
+              <span className="text-[10px] text-teal-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
+                Active
+              </span>
             </div>
 
             <p className="text-xs text-slate-400">
-              Transform this document into active study tools with upcoming pipeline milestones:
+              Transform this document into active study tools grounded in its extracted content:
             </p>
 
             <div className="space-y-2.5">
               <button
-                onClick={() =>
-                  openMilestoneModal(
-                    "Summarize Document",
-                    "Document text extraction and structured AI summaries with key takeaways and bullet points is arriving in Milestone 5 & 6.",
-                    "Milestones 5 & 6 — Ingestion & AI Summaries"
-                  )
-                }
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-brand-500/50 hover:bg-slate-900 transition-all text-left group"
+                type="button"
+                onClick={() => {
+                  setActiveTab("summary");
+                  window.scrollTo({ top: 120, behavior: "smooth" });
+                }}
+                className={cn(
+                  "w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left group cursor-pointer",
+                  activeTab === "summary"
+                    ? "bg-brand-950/60 border-brand-500/60"
+                    : "bg-slate-950/80 border-slate-800 hover:border-brand-500/50 hover:bg-slate-900"
+                )}
               >
                 <div className="flex items-center gap-2.5">
                   <div className="w-7 h-7 rounded-lg bg-brand-950 text-brand-400 flex items-center justify-center">
@@ -756,21 +794,24 @@ export default function DocumentWorkspacePage() {
                   </div>
                   <div>
                     <p className="text-xs font-bold text-white group-hover:text-brand-300">Summarize Document</p>
-                    <p className="text-[10px] text-slate-500">Key concept takeaways</p>
+                    <p className="text-[10px] text-slate-500">Key concept takeaways & overview</p>
                   </div>
                 </div>
-                <Badge variant="primary" size="sm">M6</Badge>
+                <Badge variant="teal" size="sm">Live</Badge>
               </button>
 
               <button
-                onClick={() =>
-                  openMilestoneModal(
-                    "Simplify Concept",
-                    "Adaptive concept simplification explaining dense textbook passages in multi-level student-friendly terms is arriving in Milestone 6.",
-                    "Milestone 6 — Grounded RAG Assistant"
-                  )
-                }
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-teal-500/50 hover:bg-slate-900 transition-all text-left group"
+                type="button"
+                onClick={() => {
+                  setActiveTab("simplify");
+                  window.scrollTo({ top: 120, behavior: "smooth" });
+                }}
+                className={cn(
+                  "w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left group cursor-pointer",
+                  activeTab === "simplify"
+                    ? "bg-teal-950/60 border-teal-500/60"
+                    : "bg-slate-950/80 border-slate-800 hover:border-teal-500/50 hover:bg-slate-900"
+                )}
               >
                 <div className="flex items-center gap-2.5">
                   <div className="w-7 h-7 rounded-lg bg-teal-950 text-teal-400 flex items-center justify-center">
@@ -778,10 +819,10 @@ export default function DocumentWorkspacePage() {
                   </div>
                   <div>
                     <p className="text-xs font-bold text-white group-hover:text-teal-300">Simplify Concept</p>
-                    <p className="text-[10px] text-slate-500">Student-friendly breakdowns</p>
+                    <p className="text-[10px] text-slate-500">Student-friendly analogies & terms</p>
                   </div>
                 </div>
-                <Badge variant="teal" size="sm">M6</Badge>
+                <Badge variant="teal" size="sm">Live</Badge>
               </button>
 
               <button
@@ -790,7 +831,12 @@ export default function DocumentWorkspacePage() {
                   setActiveTab("chat");
                   window.scrollTo({ top: 120, behavior: "smooth" });
                 }}
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-brand-500/50 hover:bg-slate-900 transition-all text-left group cursor-pointer"
+                className={cn(
+                  "w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left group cursor-pointer",
+                  activeTab === "chat"
+                    ? "bg-brand-950/60 border-brand-500/60"
+                    : "bg-slate-950/80 border-slate-800 hover:border-brand-500/50 hover:bg-slate-900"
+                )}
               >
                 <div className="flex items-center gap-2.5">
                   <div className="w-7 h-7 rounded-lg bg-brand-950 text-brand-400 flex items-center justify-center">
@@ -824,39 +870,6 @@ export default function DocumentWorkspacePage() {
           </div>
         </div>
       </div>
-
-      {/* ── Future Roadmap Milestone Dialog ──────────────────────── */}
-      <Dialog
-        isOpen={modalInfo.isOpen}
-        onClose={() => setModalInfo((prev) => ({ ...prev, isOpen: false }))}
-        title={modalInfo.title}
-        description={modalInfo.milestone}
-        maxWidth="max-w-md"
-      >
-        <div className="space-y-4 text-slate-800">
-          <div className="p-3.5 rounded-xl bg-brand-50 border border-brand-200 text-xs text-brand-900 flex items-start gap-2.5">
-            <Info className="w-4 h-4 text-brand-700 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold">Development Roadmap</p>
-              <p className="mt-0.5 text-brand-800">{modalInfo.description}</p>
-            </div>
-          </div>
-
-          <p className="text-xs text-surface-600 leading-relaxed">
-            In Milestone 4, your document has been securely stored in encrypted private cloud storage with full ownership verification. Text extraction, embeddings, and active study aids activate in upcoming releases.
-          </p>
-
-          <div className="pt-2 flex justify-end">
-            <Button
-              size="sm"
-              onClick={() => setModalInfo((prev) => ({ ...prev, isOpen: false }))}
-              variant="primary"
-            >
-              Understood
-            </Button>
-          </div>
-        </div>
-      </Dialog>
 
       {/* ── Delete Confirmation Dialog Modal ─────────────────────── */}
       <Dialog

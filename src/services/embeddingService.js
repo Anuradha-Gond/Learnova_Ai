@@ -4,11 +4,14 @@ import { getEmbeddingModel, isAIConfigured, AI_MODELS, AI_CONFIG } from "@/lib/a
  * Gemini Vector Embedding Service
  *
  * Generates 768-dimensional dense vector embeddings using Google Gemini's
- * `text-embedding-004` model for Atlas Vector Search and RAG retrieval.
+ * `gemini-embedding-001` model for Atlas Vector Search and RAG retrieval.
+ *
+ * The model supports `outputDimensionality` to pin output to 768 dims, which
+ * matches the existing MongoDB Atlas Vector Search index configuration.
  */
 
 export const EMBEDDING_CONFIG = {
-  model: AI_MODELS.EMBEDDINGS,       // "text-embedding-004"
+  model: AI_MODELS.EMBEDDINGS,       // "gemini-embedding-001"
   expectedDimensions: AI_CONFIG.embeddingDimensions, // 768
   maxRetries: 3,
   initialBackoffMs: 1000,
@@ -61,7 +64,14 @@ export async function generateChunkEmbedding(text, retries = EMBEDDING_CONFIG.ma
 
   while (attempt <= retries) {
     try {
-      const result = await model.embedContent(text);
+      // Pass outputDimensionality so gemini-embedding-001 returns exactly 768-dim
+      // vectors, matching the existing MongoDB Atlas Vector Search index.
+      // taskType RETRIEVAL_DOCUMENT optimises embeddings for asymmetric search.
+      const result = await model.embedContent({
+        content: { role: "user", parts: [{ text }] },
+        taskType: "RETRIEVAL_DOCUMENT",
+        outputDimensionality: EMBEDDING_CONFIG.expectedDimensions,
+      });
       const vector = result?.embedding?.values;
 
       if (!isValidEmbeddingVector(vector, EMBEDDING_CONFIG.expectedDimensions)) {

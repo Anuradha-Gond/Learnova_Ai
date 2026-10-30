@@ -10,6 +10,7 @@ import {
 } from "@/lib/storage/index.js";
 import { objectIdSchema } from "@/validations/common.js";
 import { materialUpdateSchema } from "@/validations/materials.js";
+import { releaseStorageOnDelete } from "@/services/storageQuotaService.js";
 
 /**
  * GET /api/materials/[id]
@@ -152,11 +153,20 @@ export async function DELETE(request, { params }) {
       }
     }
 
-    // 2. Remove database record and any chunks
-    await Promise.all([
-      Material.deleteOne({ _id: id, userId: user.id }),
-      MaterialChunk.deleteMany({ materialId: id }),
-    ]);
+    // 2. Remove database record atomically
+    const deletedMaterial = await Material.findOneAndDelete({ _id: id, userId: user.id });
+    if (!deletedMaterial) {
+      return Response.json(
+        { error: "Study material not found or already deleted." },
+        { status: 404 }
+      );
+    }
+
+    // Remove any chunks associated with this material
+    await MaterialChunk.deleteMany({ materialId: id });
+
+    // 3. Atomically release used storage quota exactly once
+    await releaseStorageOnDelete(deletedMaterial.fileSizeBytes, deletedMaterial.storageKey);
 
     return Response.json({
       message: "Study material deleted successfully.",
@@ -214,7 +224,7 @@ export async function PATCH(request, { params }) {
     const updated = await Material.findOneAndUpdate(
       { _id: id, userId: user.id },
       { $set: { title: result.data.title } },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     if (!updated) {

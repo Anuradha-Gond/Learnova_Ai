@@ -167,6 +167,9 @@ export async function processMaterialDocument({ materialId, userId }) {
     };
   } catch (err) {
     console.error(`[Ingestion Pipeline Error for ${materialId}]:`, err.message);
+    if (err.stack) {
+      console.error(err.stack);
+    }
 
     // Record failure status safely in database
     await Material.updateOne(

@@ -30,11 +30,10 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import Badge from "@/components/ui/Badge";
 
 export default function LandingPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState(0);
 
-  const isLoading = status === "loading";
   const isAuthenticated = status === "authenticated";
 
   const coreFeatures = [
@@ -156,7 +155,7 @@ export default function LandingPage() {
     {
       question: "Can I upload my own study materials?",
       answer:
-        "Yes! You can upload your own lecture notes and syllabi in PDF and text formats up to 15 MB. Your documents are stored privately in encrypted cloud storage and are accessible only by your authenticated account.",
+        "Yes! You can upload your own lecture notes and syllabi in PDF and text formats up to 20 MB. Your documents are stored privately in encrypted cloud storage and are accessible only by your authenticated account.",
     },
     {
       question: "How does the AI assistant help students?",
@@ -221,10 +220,7 @@ export default function LandingPage() {
 
           {/* Session-Aware CTA Buttons */}
           <div className="hidden sm:flex items-center gap-3">
-            {isLoading ? (
-              // Neutral skeleton during session hydration — prevents button flicker
-              <div className="h-8 w-28 rounded-lg bg-slate-800 animate-pulse" />
-            ) : isAuthenticated ? (
+            {isAuthenticated ? (
               <Link href="/dashboard">
                 <Button variant="primary" size="sm" className="gap-2">
                   <span>Go to Dashboard</span>

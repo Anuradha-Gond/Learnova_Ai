@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { connectDB } from "@/lib/db/index.js";
 import Material from "@/models/Material.js";
+import StorageReservation from "@/models/StorageReservation.js";
 import { requireAuth, AuthError } from "@/lib/auth/server.js";
 import {
   uploadFile,
@@ -15,6 +16,13 @@ import {
   sanitizeFilename,
 } from "@/services/documentService.js";
 import { materialListQuerySchema } from "@/validations/materials.js";
+import {
+  reserveStorageCapacity,
+  commitStorageReservation,
+  releaseStorageReservation,
+  releaseStorageOnDelete,
+  getStorageUsage,
+} from "@/services/storageQuotaService.js";
 
 /**
  * POST /api/materials
@@ -22,7 +30,7 @@ import { materialListQuerySchema } from "@/validations/materials.js";
  * Handles authenticated document upload.
  * 1. Authenticates current student via server session.
  * 2. Parses multipart/form-data safely.
- * 3. Validates file size (15 MB max), allowed extensions (pdf, txt), and file signatures.
+ * 3. Validates file size (20 MB max), allowed extensions (pdf, txt), and file signatures.
  * 4. Generates unique scoped storage key: users/{userId}/documents/{materialId}.{ext}
  * 5. Uploads file buffer to private R2/S3 bucket.
  * 6. Creates Material document in MongoDB Atlas.
@@ -70,7 +78,7 @@ export async function POST(request) {
     });
 
     if (!fileValidation.valid) {
-      const isSizeError = fileValidation.error.includes("15 MB");
+      const isSizeError = fileValidation.error.includes("20 MB");
       return Response.json(
         { error: fileValidation.error },
         { status: isSizeError ? 413 : 415 }
@@ -106,7 +114,7 @@ export async function POST(request) {
     const contentType =
       extension === "pdf" ? "application/pdf" : "text/plain; charset=utf-8";
 
-    // 6. Check storage configuration and upload to private bucket
+    // 6. Check storage configuration
     if (!isStorageConfigured()) {
       return Response.json(
         {
@@ -117,6 +125,40 @@ export async function POST(request) {
       );
     }
 
+    // 7. Atomically reserve storage quota capacity
+    await connectDB();
+    const reservation = await reserveStorageCapacity({
+      userId: user.id,
+      fileSizeBytes: file.size,
+      storageKey,
+    });
+
+    if (!reservation.success) {
+      if (reservation.reason === "FILE_TOO_LARGE") {
+        return Response.json(
+          { error: "File exceeds 20 MB limit." },
+          { status: 413 }
+        );
+      }
+      if (reservation.reason === "QUOTA_EXCEEDED") {
+        return Response.json(
+          {
+            error:
+              "Application storage quota exceeded (8.5 GB limit). Capacity is full; cannot upload new files.",
+            code: "STORAGE_QUOTA_EXCEEDED",
+          },
+          { status: 413 }
+        );
+      }
+      return Response.json(
+        { error: "Failed to allocate storage capacity. Please try again." },
+        { status: 500 }
+      );
+    }
+
+    const reservationId = reservation.reservationId;
+
+    // 8. Upload file to private R2 bucket
     try {
       await uploadFile({
         storageKey,
@@ -130,6 +172,12 @@ export async function POST(request) {
       });
     } catch (uploadErr) {
       console.error("[POST /api/materials] Storage upload failed:", uploadErr.message);
+      // Release reservation on upload failure
+      try {
+        await releaseStorageReservation(reservationId, "upload_failed");
+      } catch (relErr) {
+        console.error("[POST /api/materials] Failed to release reservation:", relErr.message);
+      }
       return Response.json(
         {
           error:
@@ -139,9 +187,35 @@ export async function POST(request) {
       );
     }
 
-    // 7. Persist document metadata in MongoDB
-    await connectDB();
+    // 9. Commit the storage reservation before creating Material record
+    // Verifies that the reservation has not expired and locks capacity into usedBytes
+    const commitResult = await commitStorageReservation(reservationId, {
+      materialId,
+    });
 
+    if (!commitResult.success) {
+      console.warn(
+        `[POST /api/materials] Reservation commit failed for material ${materialId} (${commitResult.reason}). Rolling back upload.`
+      );
+      try {
+        await deleteFile(storageKey);
+      } catch (cleanupErr) {
+        console.error(
+          `[CRITICAL ROLLBACK FAILURE] Failed to remove storage object: ${storageKey}`,
+          cleanupErr.message
+        );
+      }
+      return Response.json(
+        {
+          error:
+            "Upload took too long and the storage reservation expired. Please try uploading again.",
+          code: commitResult.reason || "RESERVATION_EXPIRED",
+        },
+        { status: 409 }
+      );
+    }
+
+    // 10. Persist document metadata in MongoDB
     let material;
     try {
       material = await Material.create({
@@ -155,23 +229,45 @@ export async function POST(request) {
         processingStatus: "pending",
       });
     } catch (dbErr) {
-      // Rollback: delete orphaned storage object if database write fails
-      console.error(
-        `[Upload Error] DB write failed for material ${materialId}. Initiating storage cleanup: ${storageKey}`
-      );
-      try {
-        await deleteFile(storageKey);
-        console.info(`[Upload Rollback] Successfully cleaned up orphaned storage object: ${storageKey}`);
-      } catch (cleanupErr) {
-        console.error(
-          `[CRITICAL ROLLBACK FAILURE] Failed to remove orphaned storage object: ${storageKey}`,
-          cleanupErr.message
+      // Scenario C & D: Check if Material was already persisted (e.g. timeout retry or duplicate key)
+      const existingMaterial = await Material.findOne({ storageKey });
+      if (existingMaterial) {
+        console.warn(
+          `[Upload Idempotency] Material already exists for storageKey ${storageKey}. Reusing existing record.`
         );
+        material = existingMaterial;
+      } else {
+        // Rollback: delete storage object, mark reservation released, and release committed quota
+        console.error(
+          `[Upload Error] DB write failed for material ${materialId}. Initiating storage cleanup: ${storageKey}`
+        );
+        try {
+          await deleteFile(storageKey);
+          console.info(`[Upload Rollback] Successfully cleaned up storage object: ${storageKey}`);
+        } catch (cleanupErr) {
+          console.error(
+            `[CRITICAL ROLLBACK FAILURE] Failed to remove storage object: ${storageKey}`,
+            cleanupErr.message
+          );
+        }
+        try {
+          await StorageReservation.updateOne(
+            { _id: reservationId },
+            { $set: { status: "released", releaseReason: "material_creation_failed" } }
+          );
+        } catch (resErr) {
+          console.error("[Upload Rollback] Failed to update reservation status:", resErr.message);
+        }
+        try {
+          await releaseStorageOnDelete(file.size, storageKey);
+        } catch (relErr) {
+          console.error("[Upload Rollback] Failed to release quota:", relErr.message);
+        }
+        throw dbErr;
       }
-      throw dbErr;
     }
 
-    // 8. Return safe response (no credentials or internal keys exposed)
+    // 11. Return safe response (no credentials or internal keys exposed)
     return Response.json(
       {
         message: "Material uploaded successfully",
@@ -258,7 +354,7 @@ export async function GET(request) {
     const sortOrder = order === "asc" ? 1 : -1;
     const sortOptions = { [sort]: sortOrder };
 
-    const [materials, totalCount] = await Promise.all([
+    const [materials, totalCount, storageUsage] = await Promise.all([
       Material.find(filter)
         .sort(sortOptions)
         .skip((page - 1) * limit)
@@ -266,6 +362,7 @@ export async function GET(request) {
         .select("-storageKey") // Do not expose private storageKey in public listing
         .lean(),
       Material.countDocuments(filter),
+      getStorageUsage().catch(() => null),
     ]);
 
     const formattedMaterials = materials.map((m) => ({
@@ -287,6 +384,7 @@ export async function GET(request) {
 
     return Response.json({
       materials: formattedMaterials,
+      storage: storageUsage,
       pagination: {
         total: totalCount,
         page,

@@ -16,6 +16,8 @@ export { default as TopicMastery } from "./TopicMastery.js";
 export { default as RevisionRecommendation } from "./RevisionRecommendation.js";
 export { default as ChatMessage } from "./ChatMessage.js";
 export { default as Conversation } from "./Conversation.js";
+export { default as StorageQuota } from "./StorageQuota.js";
+export { default as StorageReservation } from "./StorageReservation.js";
 
 /** Model name constants for use in populate() and ref fields */
 export const MODEL_NAMES = {
@@ -29,4 +31,6 @@ export const MODEL_NAMES = {
   REVISION_RECOMMENDATION: "RevisionRecommendation",
   CHAT_MESSAGE: "ChatMessage",
   CONVERSATION: "Conversation",
+  STORAGE_QUOTA: "StorageQuota",
+  STORAGE_RESERVATION: "StorageReservation",
 };

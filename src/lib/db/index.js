@@ -1,5 +1,8 @@
 import mongoose from "mongoose";
 
+// Enable MongoDB 4.2+ aggregation update pipelines across Mongoose queries
+mongoose.set("updatePipeline", true);
+
 /**
  * MongoDB Atlas & Mongoose Connection Layer
  *
@@ -31,20 +34,22 @@ if (!cached) {
  * @throws {Error} If MONGODB_URI is not configured.
  */
 export async function connectDB() {
-  if (!MONGODB_URI) {
+  const cache = global._mongooseCache || cached;
+  // Return existing connection immediately
+  if (cache?.conn) {
+    return cache.conn;
+  }
+
+  const uri = process.env.MONGODB_URI || MONGODB_URI;
+  if (!uri) {
     throw new Error(
       "[Learnova] MONGODB_URI environment variable is not set. " +
         "Add it to .env.local before using database features."
     );
   }
 
-  // Return existing connection immediately
-  if (cached.conn) {
-    return cached.conn;
-  }
-
   // Reuse an in-flight connection promise
-  if (!cached.promise) {
+  if (!cache.promise) {
     const opts = {
       bufferCommands: false,
       maxPoolSize: 10,
@@ -52,8 +57,8 @@ export async function connectDB() {
       socketTimeoutMS: 30000,
     };
 
-    cached.promise = mongoose
-      .connect(MONGODB_URI, opts)
+    cache.promise = mongoose
+      .connect(uri, opts)
       .then((mongooseInstance) => {
         return mongooseInstance;
       })

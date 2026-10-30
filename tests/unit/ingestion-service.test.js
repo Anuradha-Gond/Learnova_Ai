@@ -1,10 +1,13 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
 
 // ── Extraction Service — uses only relative imports, safe to import ────────
 import {
   normalizeText,
   extractTxtText,
+  extractPdfText,
   extractDocumentText,
 } from "../../src/services/extractionService.js";
 
@@ -129,11 +132,76 @@ describe("Learnova AI — Milestone 5: Ingestion Pipeline Tests", () => {
       assert.ok(result.text.includes("Dispatch test content"));
     });
 
+    test("extractDocumentText dispatches pdf files to PDF extractor", async () => {
+      const result = await extractDocumentText(Buffer.alloc(0), "pdf");
+      assert.equal(result.success, false);
+      assert.equal(result.error, "PDF buffer is empty.");
+    });
+
     test("extractDocumentText returns failure for unsupported file types", async () => {
       const buf = Buffer.from("data");
-      const result = await extractDocumentText(buf, "docx");
+      assert.equal((await extractDocumentText(buf, "docx")).success, false);
+    });
+  });
+
+  // ── PDF Text Extraction ────────────────────────────────────────────────
+  describe("PDF Text Extraction", () => {
+    test("fails gracefully on an empty buffer", async () => {
+      const result = await extractPdfText(Buffer.alloc(0));
       assert.equal(result.success, false);
-      assert.ok(result.error.includes("Unsupported"));
+      assert.equal(result.error, "PDF buffer is empty.");
+      assert.equal(result.pageCount, 0);
+      assert.deepEqual(result.pages, []);
+    });
+
+    test("fails gracefully on null or undefined buffer", async () => {
+      const resultNull = await extractPdfText(null);
+      assert.equal(resultNull.success, false);
+      assert.equal(resultNull.error, "PDF buffer is empty.");
+
+      const resultUndef = await extractPdfText(undefined);
+      assert.equal(resultUndef.success, false);
+      assert.equal(resultUndef.error, "PDF buffer is empty.");
+    });
+
+    test("handles corrupted or invalid PDF file structure gracefully", async () => {
+      const corruptPdf = Buffer.from("%PDF-1.7 deliberately corrupted invalid structure data");
+      const result = await extractPdfText(corruptPdf);
+      assert.equal(result.success, false);
+      assert.equal(typeof result.error, "string");
+      assert.ok(result.error.length > 0);
+      assert.equal(result.pageCount, 0);
+      assert.deepEqual(result.pages, []);
+    });
+
+    test("successfully extracts text, headings, and pages from real multi-page binary PDF fixture", async () => {
+      const fixturePath = join(process.cwd(), "tests", "fixtures", "sample.pdf");
+      assert.ok(existsSync(fixturePath), "sample.pdf fixture must exist");
+
+      const pdfBuffer = readFileSync(fixturePath);
+      assert.ok(pdfBuffer.length > 0, "PDF buffer must be non-empty");
+
+      const result = await extractPdfText(pdfBuffer);
+      assert.equal(result.success, true);
+      assert.equal(result.pageCount, 2);
+      assert.equal(result.pages.length, 2);
+
+      // Verify page ordering
+      assert.equal(result.pages[0].pageNumber, 1);
+      assert.equal(result.pages[1].pageNumber, 2);
+
+      // Verify page 1 headings, sentences, punctuation, and word spacing
+      assert.ok(result.pages[0].text.includes("Chapter 1: Foundations of Machine Learning"));
+      assert.ok(result.pages[0].text.includes("Machine learning algorithms analyze structured datasets."));
+      assert.ok(result.pages[0].text.includes("training, validation, and testing."));
+
+      // Verify page 2 content and word boundaries
+      assert.ok(result.pages[1].text.includes("Chapter 2: Vector Search and RAG"));
+      assert.ok(result.pages[1].text.includes("Retrieval-augmented generation grounds responses"));
+      assert.ok(result.pages[1].text.includes("Dense vector embeddings enable semantic similarity queries."));
+
+      // Verify combined text preserves inter-page paragraph structure
+      assert.ok(result.text.includes("\n\nChapter 2: Vector Search and RAG"));
     });
   });
 

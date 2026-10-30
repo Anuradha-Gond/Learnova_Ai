@@ -82,8 +82,8 @@ describe("Learnova AI — M2 Backend Foundation Tests", () => {
 
   // ── Storage adapter ────────────────────────────────────────────────────────
   describe("Storage Adapter (lib/storage)", () => {
-    test("STORAGE_CONFIG has correct max file size (15 MB)", () => {
-      assert.equal(STORAGE_CONFIG.maxFileSizeBytes, 15 * 1024 * 1024);
+    test("STORAGE_CONFIG has correct max file size (20 MB)", () => {
+      assert.equal(STORAGE_CONFIG.maxFileSizeBytes, 20_000_000);
     });
 
     test("STORAGE_CONFIG only allows pdf and txt", () => {
@@ -136,9 +136,9 @@ describe("Learnova AI — M2 Backend Foundation Tests", () => {
   // ── AI client config ───────────────────────────────────────────────────────
   describe("AI Client Configuration (lib/ai)", () => {
     test("AI_MODELS exports expected model identifiers", () => {
-      assert.equal(AI_MODELS.FLASH, "gemini-1.5-flash");
+      assert.equal(AI_MODELS.FLASH, "gemini-3.5-flash");
       assert.equal(AI_MODELS.PRO, "gemini-1.5-pro");
-      assert.equal(AI_MODELS.EMBEDDINGS, "text-embedding-004");
+      assert.equal(AI_MODELS.EMBEDDINGS, "gemini-embedding-001");
     });
 
     test("AI_CONFIG has correct embedding dimensions", () => {
@@ -160,7 +160,7 @@ describe("Learnova AI — M2 Backend Foundation Tests", () => {
     test("getDefaultModel falls back to flash when env is absent", () => {
       const original = process.env.GEMINI_MODEL;
       delete process.env.GEMINI_MODEL;
-      assert.equal(getDefaultModel(), "gemini-1.5-flash");
+      assert.equal(getDefaultModel(), "gemini-3.5-flash");
       if (original !== undefined) process.env.GEMINI_MODEL = original;
     });
 

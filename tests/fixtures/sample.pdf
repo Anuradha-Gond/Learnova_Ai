@@ -1,0 +1,62 @@
+%PDF-1.4
+%\xE2\xE3\xCF\xD3
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 6 0 R >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 7 0 R >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+6 0 obj
+<< /Length 232 >>
+stream
+BT
+/F1 18 Tf
+72 720 Td
+(Chapter 1: Foundations of Machine Learning) Tj
+0 -36 Td
+/F1 12 Tf
+(Machine learning algorithms analyze structured datasets.) Tj
+0 -20 Td
+(Students learn principles of training, validation, and testing.) Tj
+ET
+endstream
+endobj
+7 0 obj
+<< /Length 226 >>
+stream
+BT
+/F1 18 Tf
+72 720 Td
+(Chapter 2: Vector Search and RAG) Tj
+0 -36 Td
+/F1 12 Tf
+(Retrieval-augmented generation grounds responses in study notes.) Tj
+0 -20 Td
+(Dense vector embeddings enable semantic similarity queries.) Tj
+ET
+endstream
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000027 00000 n 
+0000000076 00000 n 
+0000000139 00000 n 
+0000000265 00000 n 
+0000000391 00000 n 
+0000000461 00000 n 
+0000000744 00000 n 
+trailer
+<< /Size 8 /Root 1 0 R >>
+startxref
+1021
+%%EOF
